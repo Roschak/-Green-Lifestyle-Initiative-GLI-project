@@ -5,12 +5,15 @@ import LoginPage       from './pages/LoginPage'
 import RegisterPage    from './pages/RegisterPage'
 import AdminDashboard  from './pages/admin/AdminDashboard'
 import AdminModerasi   from './pages/admin/AdminModerasi'
-import AdminVerifikasi from './pages/admin/AdminVerifikasi'
+import AdminMonitoring from './pages/admin/AdminMonitoring'
+import AdminProfil     from './pages/admin/AdminProfil'
+import AdminEvent      from './pages/admin/AdminEvent'      // ✅ NEW
 import UserDashboard   from './pages/user/UserDashboard'
 import UserAksi        from './pages/user/UserAksi'
 import UserRiwayat     from './pages/user/UserRiwayat'
 import UserPeringkat   from './pages/user/UserPeringkat'
 import UserProfil      from './pages/user/UserProfil'
+import UserEvent       from './pages/user/UserEvent'        // ✅ NEW
 
 function ProtectedRoute({ children, requireAdmin }) {
   const { user, loading } = useAuth()
@@ -27,15 +30,25 @@ function AppRoutes() {
       <Route path="/"         element={<LandingPage />} />
       <Route path="/login"    element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-      <Route path="/admin/dashboard"      element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
-      <Route path="/admin/moderasi"       element={<ProtectedRoute requireAdmin><AdminModerasi /></ProtectedRoute>} />
-      <Route path="/admin/verifikasi"     element={<ProtectedRoute requireAdmin><AdminVerifikasi /></ProtectedRoute>} />
-      <Route path="/admin/verifikasi/:id" element={<ProtectedRoute requireAdmin><AdminVerifikasi /></ProtectedRoute>} />
+
+      {/* ADMIN ROUTES */}
+      <Route path="/admin/dashboard"  element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/admin/moderasi"   element={<ProtectedRoute requireAdmin><AdminModerasi /></ProtectedRoute>} />
+      
+      {/* UPDATE DI SINI: Path monitoring menggantikan verifikasi */}
+      <Route path="/admin/monitoring" element={<ProtectedRoute requireAdmin><AdminMonitoring /></ProtectedRoute>} />
+      <Route path="/admin/profil"     element={<ProtectedRoute requireAdmin><AdminProfil /></ProtectedRoute>} />
+      <Route path="/admin/event"      element={<ProtectedRoute requireAdmin><AdminEvent /></ProtectedRoute>} />
+
+      {/* USER ROUTES */}
       <Route path="/user/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
       <Route path="/user/aksi"      element={<ProtectedRoute><UserAksi /></ProtectedRoute>} />
       <Route path="/user/riwayat"   element={<ProtectedRoute><UserRiwayat /></ProtectedRoute>} />
       <Route path="/user/peringkat" element={<ProtectedRoute><UserPeringkat /></ProtectedRoute>} />
       <Route path="/user/profil"    element={<ProtectedRoute><UserProfil /></ProtectedRoute>} />
+      <Route path="/user/event"     element={<ProtectedRoute><UserEvent /></ProtectedRoute>} />
+
+      {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

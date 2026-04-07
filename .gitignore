@@ -8,3 +8,6 @@ frontend/node_modules/
 # File sampah sistem
 .DS_Store
 Thumbs.db
+
+# private key untuk service account (jangan pernah di-commit ke repositori)
+serviceAccountKey.json

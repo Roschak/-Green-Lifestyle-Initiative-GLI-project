@@ -1,159 +1,306 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminSidebar from '../../components/AdminSidebar'
-import { Bell, Users, X, Clock } from 'lucide-react'
-import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts'
+import { Bell, Users, X, Clock, Calendar, Trophy, ArrowUpRight, Activity } from 'lucide-react'
+import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
+import axios from 'axios'
 
 const BG = 'linear-gradient(180deg, #004D40 0%, #2E7D32 100%)'
-const chartData = [
-  {day:'MON',value:60},{day:'TUE',value:45},{day:'WED',value:80},
-  {day:'THU',value:55},{day:'FRI',value:70},{day:'SAT',value:90},{day:'SUN',value:110},
-]
-const recentActions = [
-  {id:1,initials:'RW',color:'#e57373',name:'Raissa Wulan',     time:'10.45 AM',cat:'Menanam Pohon',desc:'Menanam 5 bibit pohon mangga di lahan A'},
-  {id:2,initials:'KD',color:'#7986cb',name:'Keysha Desmayanti',time:'09.55 AM',cat:'Energi',       desc:'Pemasangan panel surya mandiri untuk penerangan jalan'},
-  {id:3,initials:'NF',color:'#4db6ac',name:'Nasya Fauziyyah',  time:'08.00 AM',cat:'Menanam Pohon',desc:'Menanam 50 Bibit Mahoni di lahan kritis.'},
-  {id:4,initials:'SA',color:'#aed581',name:'Shyfha Ambarsari', time:'10.39 AM',cat:'Menanam Pohon',desc:'Penanaman bibit pohon jambu untuk penghijauan taman'},
-  {id:5,initials:'PA',color:'#f06292',name:'Putri Aprillia',   time:'11.13 AM',cat:'Limbah',       desc:'Daur ulang botol plastik jadi pot tanaman'},
-]
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
   const [modal, setModal] = useState(null)
 
+  const [stats, setStats] = useState({
+    totalUsers:     0,
+    pending:        0,
+    rejected:       0,
+    onlineUsers:    0,
+    topLeaderboard: 'Memuat...',
+    topPoints:      0,
+    currentSeason:  ''
+  })
+
+  // ✅ chartData untuk grafik 7 hari (tidak difilter tanggal)
+  const [chartData, setChartData] = useState([])
+
+  // ✅ allActions = semua pending dari backend
+  // recentActions = yang ditampilkan (bisa difilter tanggal)
+  const [allActions, setAllActions]     = useState([])
+  const [recentActions, setRecentActions] = useState([])
+  const [filterDate, setFilterDate]     = useState('')
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const res = await axios.get('http://localhost:5000/api/admin/stats', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+
+        setStats(res.data)
+
+        // ✅ FIX: chartData langsung dari backend (sudah format {name, value})
+        setChartData(res.data.chartData || [])
+
+        // ✅ FIX: recent dari backend sudah hanya pending
+        const mappedActions = (res.data.recent || []).map(action => ({
+          id:      action.id,
+          initials: action.user_name
+            ? action.user_name.split(' ').map(n => n[0]).join('').toUpperCase()
+            : '??',
+          color:   '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'),
+          name:    action.user_name || 'Unknown User',
+          rawDate: action.created_at,
+          time:    new Date(action.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          cat:     action.action_name  || 'General',
+          desc:    action.description  || 'Tidak ada deskripsi'
+        }))
+
+        setAllActions(mappedActions)
+        setRecentActions(mappedActions)
+
+      } catch (err) {
+        console.error('Gagal ambil data stats:', err)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  // ✅ FIX: Filter tanggal untuk Recent Actions (bukan chart)
+  useEffect(() => {
+    if (!filterDate) {
+      setRecentActions(allActions)
+    } else {
+      const filtered = allActions.filter(item => {
+        const itemDate = new Date(item.rawDate).toISOString().split('T')[0]
+        return itemDate === filterDate
+      })
+      setRecentActions(filtered)
+    }
+  }, [filterDate, allActions])
+
   return (
-    <div className="flex min-h-screen" style={{ background:BG }}>
-      <AdminSidebar/>
-      <main className="flex-1 overflow-y-auto" style={{ background:BG }}>
-        <div className="flex justify-between items-center px-8 py-7 border-b border-white/10">
-          <h1 className="font-black text-3xl text-white">Dashboard Admin!</h1>
-          <div className="flex items-center gap-4">
-            <div className="relative cursor-pointer">
-              <Bell size={22} color="white"/>
-              <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-400 rounded-full"/>
-            </div>
-            <span className="text-white/60 text-sm">3 Maret 2026</span>
+    <div className="flex min-h-screen" style={{ background: BG }}>
+      <AdminSidebar />
+      <main className="flex-1 overflow-y-auto p-8">
+
+        {/* HEADER DASHBOARD */}
+        <div className="flex justify-between items-center mb-10">
+          <div>
+            <h1 className="text-4xl font-black text-white italic uppercase tracking-tighter">Command Center</h1>
+            <p className="text-green-400 text-[10px] font-black uppercase tracking-[0.4em] mt-1">
+              Active Season: {stats.currentSeason || 'Loading...'}
+            </p>
+          </div>
+          <div className="flex items-center gap-4 bg-white/5 border border-white/10 px-6 py-3 rounded-2xl backdrop-blur-md">
+            <Calendar size={18} className="text-green-400" />
+            <span className="text-white text-sm font-black uppercase tracking-widest">
+              {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
           </div>
         </div>
 
-        <div className="p-8">
-          <div className="grid grid-cols-[1fr_240px] gap-5 mb-5">
+        {/* MAIN GRID */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
 
-            <div className="bg-white rounded-2xl p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <div className="font-bold text-base text-gray-800">Tren Aksi (7 Hari Terakhir)</div>
-                  <div className="text-xs text-gray-400 mt-0.5">Aktivitas moderasi harian</div>
-                </div>
-                <span className="bg-green-50 text-green-800 text-xs font-bold px-3 py-1 rounded-full">Total: 842 Aksi ↑</span>
+          {/* CHART AKTIVITAS (2/3 Lebar) */}
+          <div className="lg:col-span-2 bg-white rounded-[40px] p-8 shadow-2xl relative overflow-hidden">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h3 className="font-black text-gray-800 uppercase italic text-xl">Platform Traffic</h3>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Aktivitas 7 Hari Terakhir</p>
               </div>
-              <div className="h-36">
+            </div>
+
+            {/* ✅ FIX: XAxis sekarang pakai dataKey="name" agar label tanggal muncul */}
+            <div className="h-48">
+              {chartData.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-gray-300 font-black uppercase text-xs tracking-widest">
+                  Belum ada aktivitas 7 hari terakhir
+                </div>
+              ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
                     <defs>
-                      <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.15}/>
-                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+                      <linearGradient id="colorGreen" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0}   />
                       </linearGradient>
                     </defs>
-                    <Tooltip contentStyle={{ background:'#1B4332', border:'none', borderRadius:'8px', color:'white', fontSize:'12px' }} formatter={v=>[v,'Aksi']}/>
-                    <Area type="monotone" dataKey="value" stroke="#22c55e" strokeWidth={2.5} fill="url(#ag)" dot={false} activeDot={{ r:4, fill:'#22c55e' }}/>
+                    {/* ✅ FIX: dataKey="name" supaya sumbu X tampil label tanggal */}
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 700 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: '#1B4332',
+                        border: 'none',
+                        borderRadius: '15px',
+                        color: 'white',
+                        fontSize: '12px'
+                      }}
+                      formatter={(val) => [`${val} Aksi`, 'Total']}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#22c55e"
+                      strokeWidth={4}
+                      fill="url(#colorGreen)"
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
-              </div>
-              <div className="flex justify-between pt-1">
-                {chartData.map(d=><span key={d.day} className="text-xs text-gray-300">{d.day}</span>)}
-              </div>
-            </div>
-
-            
-            <div className="flex flex-col gap-4">
-              <div className="rounded-2xl p-5" style={{ background:'#1B4332' }}>
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-sm font-bold text-white">User Aktif</span>
-                  <Users size={20} color="rgba(255,255,255,0.6)"/>
-                </div>
-                <div className="bg-white rounded-xl px-5 py-3">
-                  <div className="text-5xl font-black text-gray-800">300</div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white rounded-xl p-4">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <X size={13} color="#ef4444"/>
-                    <span className="text-xs font-bold text-gray-500">Ditolak</span>
-                  </div>
-                  <div className="text-4xl font-black text-gray-800">7</div>
-                </div>
-                <div className="bg-white rounded-xl p-4">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <Clock size={13} color="#f59e0b"/>
-                    <span className="text-xs font-bold text-gray-500">Aksi Pending</span>
-                  </div>
-                  <div className="text-4xl font-black text-gray-800">15</div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-6">
-            <div className="flex justify-between items-center mb-4">
-              <span className="font-extrabold text-lg text-gray-800">Aksi Terbaru</span>
-              <span onClick={()=>navigate('/admin/moderasi')} className="text-sm text-green-500 cursor-pointer font-bold">Lihat Semua</span>
+          {/* SEASON MONITORING (1/3 Lebar) */}
+          <div className="bg-[#1B4332] border border-white/10 rounded-[40px] p-8 shadow-2xl flex flex-col justify-between group hover:border-green-400 transition-all">
+            <div className="flex justify-between items-start">
+              <div className="p-4 bg-yellow-400 rounded-2xl text-green-900 shadow-lg shadow-yellow-400/20">
+                <Trophy size={28} />
+              </div>
+              <div className="text-right">
+                <p className="text-white/30 text-[10px] font-black uppercase tracking-widest">Top Performer</p>
+                <Activity size={18} className="text-green-400 ml-auto mt-2 animate-pulse" />
+              </div>
             </div>
-            <div className="grid grid-cols-[1.8fr_1fr_1fr_90px] gap-3 pb-2 border-b border-gray-100">
-              {['NAMA USER','KATEGORI','WAKTU',''].map(h=>(
-                <span key={h} className="text-xs uppercase tracking-widest text-gray-300 font-bold">{h}</span>
-              ))}
+            <div className="mt-6">
+              <p className="text-white/40 text-[10px] font-black uppercase mb-1">Juara Sementara:</p>
+              <h2 className="text-3xl font-black text-white italic uppercase truncate tracking-tighter mb-1">
+                {stats.topLeaderboard}
+              </h2>
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 bg-green-500/20 rounded-lg text-green-400 font-black text-xs">
+                  {stats.topPoints} GREEN POINTS
+                </span>
+              </div>
             </div>
-            {recentActions.map((row,i)=>(
-              <div key={row.id} className={`grid grid-cols-[1.8fr_1fr_1fr_90px] gap-3 py-3 items-center ${i<recentActions.length-1?'border-b border-gray-50':''}`}>
-                <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-extrabold text-white flex-shrink-0" style={{ background:row.color }}>{row.initials}</div>
-                  <span className="text-sm text-gray-800 font-medium">{row.name}</span>
+            <button
+              onClick={() => navigate('/admin/monitoring')}
+              className="w-full mt-8 py-4 bg-white/5 hover:bg-green-400 hover:text-green-900 border border-white/10 text-white font-black text-[10px] rounded-2xl uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+            >
+              Buka Monitoring <ArrowUpRight size={14} />
+            </button>
+          </div>
+        </div>
+
+        {/* QUICK STATS & RECENT TABLE */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+
+          {/* STATS COLUMN */}
+          <div className="space-y-6">
+            {[
+              { label: 'Total User', val: stats.totalUsers,  icon: <Users />, color: 'text-blue-400'   },
+              { label: 'Pending',    val: stats.pending,     icon: <Clock />, color: 'text-yellow-400' },
+              { label: 'Rejected',   val: stats.rejected,    icon: <X />,     color: 'text-red-400'    },
+            ].map((item, i) => (
+              <div key={i} className="bg-white/5 border border-white/10 p-6 rounded-3xl backdrop-blur-md">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-white/40 text-[10px] font-black uppercase">{item.label}</p>
+                    <h3 className="text-2xl font-black text-white mt-1">{item.val}</h3>
+                  </div>
+                  <div className={`${item.color} opacity-50`}>{item.icon}</div>
                 </div>
-                <span className="text-sm text-gray-400">{row.cat}</span>
-                <span className="text-sm text-gray-400">{row.time}</span>
-                <button onClick={()=>setModal(row)} className="px-4 py-1.5 bg-green-400 text-white font-bold text-sm rounded-lg cursor-pointer border-none hover:bg-green-500 transition-colors">Cek</button>
               </div>
             ))}
+          </div>
+
+          {/* TABLE COLUMN (3/4 Lebar) */}
+          <div className="lg:col-span-3 bg-white rounded-[40px] p-8 shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="font-black text-gray-800 uppercase italic">Recent Action Requests</h3>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Menunggu Verifikasi</p>
+              </div>
+              <div className="flex items-center gap-3">
+                {/* ✅ Filter tanggal dipindah ke sini, relevan untuk recent actions */}
+                <input
+                  type="date"
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                  className="bg-gray-100 border-none rounded-xl px-4 py-2 text-[10px] font-black uppercase outline-none focus:ring-2 ring-green-400"
+                />
+                <button
+                  onClick={() => navigate('/admin/moderasi')}
+                  className="text-[10px] font-black text-green-600 uppercase tracking-widest hover:underline whitespace-nowrap"
+                >
+                  Manage All
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {recentActions.length > 0 ? recentActions.map((row) => (
+                <div key={row.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-[24px] border border-gray-100 hover:shadow-md transition-all">
+                  <div className="flex items-center gap-4">
+                    <div
+                      className="w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-black text-white shadow-lg"
+                      style={{ background: row.color }}
+                    >
+                      {row.initials}
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-gray-800 leading-tight">{row.name}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase">{row.cat}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] text-gray-300 font-bold">{row.time}</span>
+                    <button
+                      onClick={() => setModal(row)}
+                      className="px-6 py-2 bg-green-400 text-green-950 font-black text-[10px] rounded-xl uppercase tracking-tighter hover:bg-green-500 transition-colors"
+                    >
+                      Periksa
+                    </button>
+                  </div>
+                </div>
+              )) : (
+                <div className="py-10 text-center text-gray-300 font-black uppercase text-xs tracking-[0.3em]">
+                  {filterDate ? 'Tidak ada aksi pada tanggal ini' : 'Tidak ada aksi pending'}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </main>
 
+      {/* MODAL DETAIL */}
       {modal && (
-        <div onClick={()=>setModal(null)} className="fixed inset-0 bg-black/55 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div onClick={e=>e.stopPropagation()} className="rounded-2xl p-7 max-w-md w-11/12 border border-white/10" style={{ background:'#1B4332' }}>
-            <div className="flex items-center gap-4 mb-5">
-              <div className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-extrabold text-white" style={{ background:modal.color }}>{modal.initials}</div>
-              <div>
-                <div className="text-xl font-extrabold text-white">{modal.name}</div>
-                <div className="flex gap-3 mt-1">
-                  <span className="text-xs text-white/50">▶ 24 Aksi Dikirim</span>
-                  <span className="text-xs text-yellow-400">◉ 12.500 Poin</span>
-                </div>
-              </div>
+        <div
+          onClick={() => setModal(null)}
+          className="fixed inset-0 bg-black/80 backdrop-blur-xl z-50 flex items-center justify-center p-4"
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            className="bg-[#1B4332] border border-white/10 rounded-[40px] p-10 max-w-md w-full shadow-2xl"
+          >
+            <h2 className="text-white font-black text-3xl italic uppercase tracking-tighter mb-2">{modal.name}</h2>
+            <div className="inline-block px-3 py-1 bg-green-500/20 text-green-400 text-[10px] font-black uppercase rounded-lg mb-6 tracking-widest">
+              Category: {modal.cat}
             </div>
-            <div className="text-xs uppercase tracking-widest text-white/35 mb-2 font-bold">KATEGORI AKSI</div>
-            <div className="flex items-center gap-2 bg-white/8 rounded-xl px-4 py-3 mb-4">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base" style={{ background:'#2D6A4F' }}>🌱</div>
-              <span className="font-bold text-white text-sm">{modal.cat}</span>
+            <div className="bg-white/5 border border-white/5 rounded-3xl p-6 italic text-white/70 text-sm leading-relaxed mb-8">
+              "{modal.desc}"
             </div>
-            <div className="text-xs uppercase tracking-widest text-white/35 mb-2 font-bold">DETAIL AKSI</div>
-            <p className="text-sm text-white/65 leading-relaxed mb-4">{modal.desc}</p>
-            <div className="flex gap-6 mb-5">
-              <div>
-                <div className="text-xs text-white/35 mb-1">Tanggal Pengiriman</div>
-                <div className="text-sm text-white font-semibold">14 Okt 2023</div>
-              </div>
-              <div>
-                <div className="text-xs text-white/35 mb-1">Status Aksi</div>
-                <span className="bg-green-400/15 text-green-400 text-xs font-bold px-3 py-1 rounded-full">DITERIMA</span>
-              </div>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <button onClick={()=>{ setModal(null); navigate('/admin/verifikasi') }} className="px-5 py-2.5 bg-green-400 text-green-900 font-bold text-sm rounded-xl cursor-pointer border-none">Verifikasi</button>
-              <button onClick={()=>setModal(null)} className="px-6 py-2.5 text-white font-semibold text-sm rounded-xl cursor-pointer border-none bg-white/10">Tutup</button>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => { setModal(null); navigate('/admin/moderasi') }}
+                className="py-4 bg-green-400 text-green-950 font-black rounded-2xl text-[10px] uppercase hover:scale-95 transition-all"
+              >
+                Verifikasi
+              </button>
+              <button
+                onClick={() => setModal(null)}
+                className="py-4 bg-white/5 text-white/50 font-black rounded-2xl text-[10px] uppercase hover:bg-white/10 transition-all"
+              >
+                Tutup
+              </button>
             </div>
           </div>
         </div>
