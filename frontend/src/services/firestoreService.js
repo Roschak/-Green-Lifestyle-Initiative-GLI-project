@@ -87,3 +87,153 @@ export async function getUserByEmail(email) {
     return null;
   }
 }
+
+// ============ ACTIONS ============
+export async function createAction(actionData) {
+  const actionsRef = collection(db, 'actions')
+  const newAction = {
+    ...actionData,
+    status: 'pending',
+    points_earned: 0,
+    created_at: new Date().toISOString()
+  }
+  const docRef = await addDoc(actionsRef, newAction)
+  return { id: docRef.id, ...newAction }
+}
+
+export async function getUserActions(userId) {
+  const actionsRef = collection(db, 'actions')
+  const q = query(actionsRef, where('user_id', '==', userId), orderBy('created_at', 'desc'))
+  const snapshot = await getDocs(q)
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+}
+
+export async function getAllActions() {
+  const actionsRef = collection(db, 'actions')
+  const q = query(actionsRef, orderBy('created_at', 'desc'))
+  const snapshot = await getDocs(q)
+  
+  const actions = []
+  for (const docSnap of snapshot.docs) {
+    const action = { id: docSnap.id, ...docSnap.data() }
+    const userDoc = await getDoc(doc(db, 'users', action.user_id))
+    action.user_name = userDoc.exists() ? userDoc.data().name : 'Unknown'
+    actions.push(action)
+  }
+  return actions
+}
+
+export async function verifyAction(actionId, status, pointsEarned = 0, rejectionReason = null) {
+  const actionRef = doc(db, 'actions', actionId)
+  const actionDoc = await getDoc(actionRef)
+  if (!actionDoc.exists()) throw new Error('Action not found')
+  
+  await updateDoc(actionRef, { status })
+  
+  if (status === 'approved' && pointsEarned > 0) {
+    const userId = actionDoc.data().user_id
+    const userRef = doc(db, 'users', userId)
+    const userDoc = await getDoc(userRef)
+    if (userDoc.exists()) {
+      await updateDoc(userRef, {
+        points: (userDoc.data().points || 0) + pointsEarned,
+        monthly_points: (userDoc.data().monthly_points || 0) + pointsEarned
+      })
+    }
+    await updateDoc(actionRef, { points_earned: pointsEarned })
+  }
+  
+  if (status === 'rejected' && rejectionReason) {
+    await updateDoc(actionRef, { rejection_reason: rejectionReason })
+  }
+}
+
+// ============ USER STATS ============
+export async function getUserStats(userId) {
+  const userData = await getUserData(userId)
+  const actions = await getUserActions(userId)
+  
+  const approved = actions.filter(a => a.status === 'approved')
+  const pending = actions.filter(a => a.status === 'pending')
+  const rejected = actions.filter(a => a.status === 'rejected')
+  
+  return {
+    name: userData?.name,
+    points: userData?.points || 0,
+    monthly_points: userData?.monthly_points || 0,
+    level: userData?.level || 'Eco-Newbie',
+    totalActions: actions.length,
+    approved: approved.length,
+    pending: pending.length,
+    rejected: rejected.length,
+    totalPoints: approved.reduce((sum, a) => sum + (a.points_earned || 0), 0)
+  }
+}
+
+// ============ LEADERBOARD ============
+export async function getLeaderboard() {
+  const usersRef = collection(db, 'users')
+  const q = query(usersRef, where('role', '==', 'user'), orderBy('monthly_points', 'desc'), limit(10))
+  const snapshot = await getDocs(q)
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    name: doc.data().name,
+    points: doc.data().monthly_points || 0,
+    level: doc.data().level
+  }))
+}
+
+// ============ ADMIN STATS ============
+export async function getAdminStats() {
+  const usersSnapshot = await getDocs(collection(db, 'users'))
+  const actionsSnapshot = await getDocs(collection(db, 'actions'))
+  
+  const users = usersSnapshot.docs.filter(d => d.data().role === 'user')
+  const actions = actionsSnapshot.docs.map(d => d.data())
+  
+  return {
+    totalUsers: users.length,
+    totalActions: actions.length,
+    pending: actions.filter(a => a.status === 'pending').length,
+    approved: actions.filter(a => a.status === 'approved').length,
+    rejected: actions.filter(a => a.status === 'rejected').length,
+    onlineUsers: users.filter(u => u.data().status === 'online').length
+  }
+}
+
+// ============ EVENTS ============
+export async function getAllEvents() {
+  const eventsRef = collection(db, 'events')
+  const q = query(eventsRef, orderBy('created_at', 'desc'))
+  const snapshot = await getDocs(q)
+  
+  const events = []
+  for (const docSnap of snapshot.docs) {
+    const event = { id: docSnap.id, ...docSnap.data() }
+    if (event.host_id) {
+      const hostDoc = await getDoc(doc(db, 'users', event.host_id))
+      event.host_name = hostDoc.exists() ? hostDoc.data().name : 'Unknown'
+    }
+    events.push(event)
+  }
+  return events
+}
+
+export async function createEvent(eventData) {
+  const newEvent = { ...eventData, status: 'roundown', created_at: new Date().toISOString() }
+  const docRef = await addDoc(collection(db, 'events'), newEvent)
+  return { id: docRef.id, ...newEvent }
+}
+
+export async function registerToEvent(registrationData) {
+  const existing = await getDocs(query(
+    collection(db, 'event_registrations'),
+    where('event_id', '==', registrationData.event_id),
+    where('email', '==', registrationData.email)
+  ))
+  if (!existing.empty) throw new Error('Email sudah terdaftar')
+  
+  const newRegistration = { ...registrationData, proof_status: 'pending', medal_awarded: false, registered_at: new Date().toISOString() }
+  const docRef = await addDoc(collection(db, 'event_registrations'), newRegistration)
+  return { id: docRef.id, ...newRegistration }
+}

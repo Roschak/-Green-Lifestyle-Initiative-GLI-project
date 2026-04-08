@@ -173,41 +173,69 @@ exports.getUserDetail = async (req, res) => {
 
 // ================= VERIFY ACTION =================
 exports.verifyAction = async (req, res) => {
-    const { id }             = req.params;
-    const { status, points_earned } = req.body;
+  const { id } = req.params;
+  const { status, points_earned, admin_note, rejection_reason } = req.body;
 
-    console.log(`=== VERIFY ACTION ID: ${id} === STATUS: ${status}, POINTS: ${points_earned}`);
+  console.log(`=== VERIFY ACTION ID: ${id} === STATUS: ${status}, POINTS: ${points_earned}`);
 
-    try {
-        const actionRef = db.collection('actions').doc(id);
-        const actionDoc = await actionRef.get();
-        if (!actionDoc.exists) return res.status(404).json({ message: 'Aksi tidak ditemukan' });
-
-        const userId = actionDoc.data().user_id;
-
-        // Update action status
-        await actionRef.update({ status });
-
-        if (status === 'approved' && Number(points_earned) > 0) {
-            const userRef = db.collection('users').doc(userId);
-            const userDoc = await userRef.get();
-            if (userDoc.exists) {
-                const userData = userDoc.data();
-                await userRef.update({
-                    points:         (userData.points         || 0) + Number(points_earned),
-                    monthly_points: (userData.monthly_points || 0) + Number(points_earned),
-                    last_reset:     userData.last_reset || new Date()
-                });
-            }
-            console.log(`✅ POIN +${points_earned} ke user ID: ${userId}`);
-        }
-
-        return res.json({ success: true, message: 'Verifikasi berhasil' });
-
-    } catch (err) {
-        console.error('❌ ERROR VERIFY:', err);
-        return res.status(500).json({ message: 'Gagal verifikasi' });
+  try {
+    const actionRef = db.collection('actions').doc(id);
+    const actionDoc = await actionRef.get();
+    
+    if (!actionDoc.exists) {
+      return res.status(404).json({ message: 'Aksi tidak ditemukan' });
     }
+
+    const actionData = actionDoc.data();
+    const userId = actionData.user_id;
+
+    // Update action
+    const updateData = { 
+      status,
+      admin_note: admin_note || '',
+      updated_at: new Date()
+    };
+    
+    if (status === 'approved') {
+      updateData.points_earned = Number(points_earned) || 0;
+    }
+    
+    if (status === 'rejected' && rejection_reason) {
+      updateData.rejection_reason = rejection_reason;
+    }
+    
+    await actionRef.update(updateData);
+
+    // Tambah poin jika approved
+    if (status === 'approved' && Number(points_earned) > 0) {
+      const userRef = db.collection('users').doc(userId);
+      const userDoc = await userRef.get();
+      
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        const currentPoints = userData.points || 0;
+        const currentMonthly = userData.monthly_points || 0;
+        
+        await userRef.update({
+          points: currentPoints + Number(points_earned),
+          monthly_points: currentMonthly + Number(points_earned),
+          last_reset: userData.last_reset || new Date(),
+          updated_at: new Date()
+        });
+        
+        console.log(`✅ POIN +${points_earned} ke user ID: ${userId}`);
+      }
+    }
+
+    return res.json({ 
+      success: true, 
+      message: `Aksi berhasil ${status === 'approved' ? 'disetujui' : 'ditolak'}` 
+    });
+
+  } catch (err) {
+    console.error('❌ ERROR VERIFY:', err);
+    return res.status(500).json({ message: 'Gagal verifikasi' });
+  }
 };
 
 // ================= LEADERBOARD =================

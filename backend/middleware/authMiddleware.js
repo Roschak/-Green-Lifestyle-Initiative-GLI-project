@@ -1,41 +1,37 @@
 // middleware/authMiddleware.js
-const jwt = require('jsonwebtoken');
+const admin = require('firebase-admin')
 
 const protect = async (req, res, next) => {
-    let token;
+    console.log('=== AUTH CHECK ===')
 
-    console.log("=== AUTH CHECK ===");
+    const authHeader = req.headers.authorization
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.log('❌ TOKEN TIDAK ADA')
+        return res.status(401).json({ success: false, message: 'Akses ditolak, token tidak ditemukan!' })
+    }
 
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-        try {
-            token = req.headers.authorization.split(' ')[1];
-            console.log("TOKEN:", token);
+    const token = authHeader.split(' ')[1]
 
-            const decoded = jwt.verify(
-                token,
-                process.env.JWT_SECRET || 'secret_gli_123'
-            );
+    try {
+        // ✅ Verifikasi Firebase ID token (bukan JWT biasa)
+        const decoded = await admin.auth().verifyIdToken(token)
+        console.log('✅ TOKEN VALID, uid:', decoded.uid)
 
-            console.log("DECODED USER:", decoded);
-
-            req.user = decoded;
-            next();
-        } catch (error) {
-            console.error("❌ TOKEN ERROR:", error.message);
-            return res.status(401).json({
-                success: false,
-                message: "Sesi tidak valid, silakan login ulang!"
-            });
+        // Ambil data user dari Firestore untuk dapat role
+        const userDoc = await admin.firestore().collection('users').doc(decoded.uid).get()
+        
+        req.user = {
+            id:   decoded.uid,
+            uid:  decoded.uid,
+            role: userDoc.exists ? (userDoc.data().role || 'user') : 'user',
+            email: decoded.email
         }
-    }
 
-    if (!token) {
-        console.log("❌ TOKEN TIDAK ADA");
-        return res.status(401).json({
-            success: false,
-            message: "Akses ditolak, token tidak ditemukan!"
-        });
+        next()
+    } catch (error) {
+        console.error('❌ TOKEN ERROR:', error.message)
+        return res.status(401).json({ success: false, message: 'Sesi tidak valid, silakan login ulang!' })
     }
-};
+}
 
-module.exports = { protect };
+module.exports = { protect }
