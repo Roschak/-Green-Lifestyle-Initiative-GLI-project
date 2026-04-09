@@ -12,21 +12,43 @@ const eventRoutes = require('./routes/eventRoutes');
 
 const app = express();
 
-// ✅ CORS CONFIGURATION
+// ✅ CORS CONFIGURATION - Comprehensive
 const corsOptions = {
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'http://localhost:5000',
-    'https://gli-frontend.vercel.app',
-    'https://*.vercel.app'
-  ],
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://localhost:5000',
+      'https://gli-frontend.vercel.app',
+      'https://gli-project-web.web.app',
+      'https://gli-project-web.firebaseapp.com'
+    ];
+
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    // Check if origin is in allowed list or is a vercel domain
+    if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app') || origin.endsWith('.web.app')) {
+      callback(null, true);
+    } else {
+      console.log('❌ CORS rejected origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Type', 'Authorization'],
+  maxAge: 86400
 };
 
 app.use(cors(corsOptions));
+
+// ✅ Explicit preflight handler
+app.options('*', cors(corsOptions));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static('uploads'));

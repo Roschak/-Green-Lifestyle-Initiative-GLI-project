@@ -1,46 +1,46 @@
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
-import axios from 'axios'
+import api from '../services/api'
 import { Calendar, MapPin, Users, X, User, Phone, Mail, CheckCircle, ExternalLink } from 'lucide-react'
 
 const BG_IMAGE = '/images/ricefields.jpeg'
 
-const fmt      = (d) => !d ? '-' : new Date(d).toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' })
-const fmtDT    = (d) => !d ? '-' : new Date(d).toLocaleString('id-ID', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })
+const fmt = (d) => !d ? '-' : new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+const fmtDT = (d) => !d ? '-' : new Date(d).toLocaleString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 const STATUS_MAP = {
-  roundown:     { label:'Pendaftaran Dibuka', color:'bg-yellow-400 text-yellow-900' },
-  dilaksanakan: { label:'Sedang Berlangsung', color:'bg-green-400 text-green-900'   },
-  berakhir:     { label:'Telah Berakhir',     color:'bg-gray-400 text-gray-900'     },
+  roundown: { label: 'Pendaftaran Dibuka', color: 'bg-yellow-400 text-yellow-900' },
+  dilaksanakan: { label: 'Sedang Berlangsung', color: 'bg-green-400 text-green-900' },
+  berakhir: { label: 'Telah Berakhir', color: 'bg-gray-400 text-gray-900' },
 }
 
 // Komponen Thumbnail reusable
 const EventThumb = ({ event, className = 'w-full h-full' }) => (
   event.thumbnail_type === 'image' && event.thumbnail
-    ? <img src={`http://localhost:5000${event.thumbnail}`} className={`${className} object-cover`} />
+    ? <img src={event.thumbnail.startsWith('http') ? event.thumbnail : `http://localhost:5000${event.thumbnail}`} className={`${className} object-cover`} />
     : <div className={`${className} flex items-center justify-center`} style={{ background: event.thumbnail_color || '#22c55e' }}>
-        <p className="text-white font-black text-xl text-center px-4 drop-shadow">{event.thumbnail_text || event.title}</p>
-      </div>
+      <p className="text-white font-black text-xl text-center px-4 drop-shadow">{event.thumbnail_text || event.title}</p>
+    </div>
 )
 
 export default function LandingPage() {
-  const navigate      = useNavigate()
-  const { user }      = useAuth()  // ✅ Ambil user yang sedang login
-  const [show, setShow]             = useState([false, false, false])
-  const [events, setEvents]         = useState([])
+  const navigate = useNavigate()
+  const { user } = useAuth()  // ✅ Ambil user yang sedang login
+  const [show, setShow] = useState([false, false, false])
+  const [events, setEvents] = useState([])
   const [registerModal, setRegisterModal] = useState(null)
-  const [detailModal, setDetailModal]     = useState(null)
+  const [detailModal, setDetailModal] = useState(null)
   // ✅ successData menyimpan data lengkap setelah berhasil daftar
-  const [successData, setSuccessData]     = useState(null)
-  const [form, setForm]             = useState({ name:'', email:'', phone:'' })
-  const [loading, setLoading]       = useState(false)
+  const [successData, setSuccessData] = useState(null)
+  const [form, setForm] = useState({ name: '', email: '', phone: '' })
+  const [loading, setLoading] = useState(false)
   const [confirmClose, setConfirmClose] = useState(false)
 
   useEffect(() => {
-    setTimeout(() => setShow([true,false,false]), 500)
-    setTimeout(() => setShow([true,true,false]), 1200)
-    setTimeout(() => setShow([true,true,true]), 1900)
+    setTimeout(() => setShow([true, false, false]), 500)
+    setTimeout(() => setShow([true, true, false]), 1200)
+    setTimeout(() => setShow([true, true, true]), 1900)
     fetchEvents()
     // ✅ Jika user sudah login, isi form otomatis
     if (user) {
@@ -50,7 +50,7 @@ export default function LandingPage() {
 
   const fetchEvents = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/events')
+      const res = await api.get('/events')
       setEvents(res.data || [])
     } catch (err) { console.error('Gagal ambil events:', err) }
   }
@@ -69,16 +69,16 @@ export default function LandingPage() {
     if (!form.name || !form.email) return alert('Nama dan email wajib diisi!')
     setLoading(true)
     try {
-      const res = await axios.post('http://localhost:5000/api/events/register', {
-        event_id:     registerModal.id,
-        user_id:      user?.id || null,  // ✅ Kirim user_id kalau sudah login
-        name:         form.name,
-        email:        form.email,
-        phone:        form.phone,
+      const res = await api.post('/events/register', {
+        event_id: registerModal.id,
+        user_id: user?.id || null,  // ✅ Kirim user_id kalau sudah login
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
         is_gli_member: user ? 1 : 0,
       })
       setRegisterModal(null)
-      setForm({ name:'', email:'', phone:'' })
+      setForm({ name: '', email: '', phone: '' })
       // ✅ Simpan data sukses termasuk wa_link
       setSuccessData(res.data)
     } catch (err) {
@@ -98,16 +98,16 @@ export default function LandingPage() {
   }
 
   const articles = [
-    { img:'/images/menanam.png',          title:'Cara Menanam Pohon di Lingkungan Rumah', desc:'Menanam pohon membantu menjaga kualitas udara dan membuat lingkungan lebih hijau.' },
-    { img:'/images/bersih-lingkungan.png', title:'Aksi Bersih Lingkungan Bersama',        desc:'Kegiatan bersama meningkatkan kesadaran menjaga kebersihan lingkungan.' },
-    { img:'/images/botol-plastik.png',    title:'Manfaat Daur Ulang Sampah Plastik',      desc:'Mengurangi limbah dan membantu menghemat sumber daya.' },
-    { img:'/images/recycle.png',          title:'Tips Mengurangi Sampah Plastik',          desc:'Gunakan barang reusable untuk menjaga kelestarian lingkungan.' },
+    { img: '/images/menanam.png', title: 'Cara Menanam Pohon di Lingkungan Rumah', desc: 'Menanam pohon membantu menjaga kualitas udara dan membuat lingkungan lebih hijau.' },
+    { img: '/images/bersih-lingkungan.png', title: 'Aksi Bersih Lingkungan Bersama', desc: 'Kegiatan bersama meningkatkan kesadaran menjaga kebersihan lingkungan.' },
+    { img: '/images/botol-plastik.png', title: 'Manfaat Daur Ulang Sampah Plastik', desc: 'Mengurangi limbah dan membantu menghemat sumber daya.' },
+    { img: '/images/recycle.png', title: 'Tips Mengurangi Sampah Plastik', desc: 'Gunakan barang reusable untuk menjaga kelestarian lingkungan.' },
   ]
 
   return (
     <div className="min-h-screen font-poppins relative"
-      style={{ backgroundImage:`url(${BG_IMAGE})`, backgroundSize:'cover', backgroundPosition:'center', backgroundAttachment:'fixed' }}>
-      
+      style={{ backgroundImage: `url(${BG_IMAGE})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
+
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
 
       <div className="relative z-10">
@@ -140,7 +140,7 @@ export default function LandingPage() {
         <section id="home" className="flex flex-col md:flex-row items-center justify-between px-16 py-24 gap-10">
           <div className="max-w-xl">
             <div className="text-white font-black text-6xl mb-8 space-y-2 drop-shadow-lg">
-              {[['G','reen'],['L','ive'],['I','nitiative']].map(([l,r],i) => (
+              {[['G', 'reen'], ['L', 'ive'], ['I', 'nitiative']].map(([l, r], i) => (
                 <div key={i} className="flex items-center gap-2 overflow-hidden">
                   <span>{l}</span>
                   <span className={`transition-all duration-700 ${show[i] ? 'translate-x-0 opacity-100' : '-translate-x-10 opacity-0'}`}>{r}</span>
@@ -181,7 +181,7 @@ export default function LandingPage() {
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {events.map(event => {
-                const st      = STATUS_MAP[event.status] || STATUS_MAP.roundown
+                const st = STATUS_MAP[event.status] || STATUS_MAP.roundown
                 const isAdmin = event.host_role === 'admin'
                 return (
                   <div key={event.id} className="backdrop-blur-2xl bg-white/10 border border-white/20 rounded-[32px] overflow-hidden shadow-xl hover:scale-[1.02] transition-all">
@@ -200,9 +200,9 @@ export default function LandingPage() {
                       <h3 className="font-black text-white text-lg leading-tight mb-2">{event.title}</h3>
                       <p className="text-white/60 text-xs mb-3 line-clamp-2">{event.description}</p>
                       <div className="space-y-1.5 mb-4">
-                        <div className="flex items-center gap-2 text-white/50 text-xs"><MapPin size={12}/><span>{event.location || 'Online'}</span></div>
-                        <div className="flex items-center gap-2 text-white/50 text-xs"><Calendar size={12}/><span>{fmt(event.event_start)}</span></div>
-                        <div className="flex items-center gap-2 text-white/50 text-xs"><Users size={12}/><span>{event.total_registered} Terdaftar</span></div>
+                        <div className="flex items-center gap-2 text-white/50 text-xs"><MapPin size={12} /><span>{event.location || 'Online'}</span></div>
+                        <div className="flex items-center gap-2 text-white/50 text-xs"><Calendar size={12} /><span>{fmt(event.event_start)}</span></div>
+                        <div className="flex items-center gap-2 text-white/50 text-xs"><Users size={12} /><span>{event.total_registered} Terdaftar</span></div>
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => setDetailModal(event)}
@@ -234,7 +234,7 @@ export default function LandingPage() {
         <section id="artikel" className="px-16 py-20">
           <h2 className="text-4xl font-black text-white mb-10 drop-shadow-lg">Artikel Terbaru</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {articles.map((a,i) => (
+            {articles.map((a, i) => (
               <div key={i} className="backdrop-blur-2xl bg-white/10 border border-white/20 rounded-[32px] p-6 shadow-xl hover:scale-105 transition">
                 <img src={a.img} className="w-full h-40 object-cover rounded-2xl mb-4" />
                 <h3 className="text-lg font-bold text-white mb-2">{a.title}</h3>
@@ -256,7 +256,7 @@ export default function LandingPage() {
             <div className="relative h-52">
               <EventThumb event={detailModal} />
               <button onClick={() => setDetailModal(null)} className="absolute top-4 right-4 w-8 h-8 bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70 transition">
-                <X size={14}/>
+                <X size={14} />
               </button>
               <div className="absolute bottom-3 left-3">
                 <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase ${detailModal.host_role === 'admin' ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'}`}>
@@ -276,10 +276,10 @@ export default function LandingPage() {
 
               <div className="grid grid-cols-2 gap-3 mb-5">
                 {[
-                  ['Lokasi',            detailModal.location || 'Online'],
-                  ['Peserta',           `${detailModal.total_registered} orang`],
+                  ['Lokasi', detailModal.location || 'Online'],
+                  ['Peserta', `${detailModal.total_registered} orang`],
                   ['Mulai Pelaksanaan', fmtDT(detailModal.event_start)],
-                  ['Pendaftaran s/d',   fmtDT(detailModal.registration_end)],
+                  ['Pendaftaran s/d', fmtDT(detailModal.registration_end)],
                 ].map(([label, val]) => (
                   <div key={label} className="bg-gray-50 rounded-2xl p-4">
                     <p className="text-[9px] font-black text-gray-400 uppercase mb-1">{label}</p>
@@ -292,7 +292,7 @@ export default function LandingPage() {
               {detailModal.status === 'dilaksanakan' && detailModal.wa_link && (
                 <a href={detailModal.wa_link} target="_blank" rel="noreferrer"
                   className="w-full flex items-center justify-center gap-2 py-3 bg-green-500 text-white font-black text-sm rounded-2xl hover:bg-green-600 transition mb-3">
-                  <ExternalLink size={16}/> Bergabung ke Grup WA
+                  <ExternalLink size={16} /> Bergabung ke Grup WA
                 </a>
               )}
 
@@ -322,13 +322,13 @@ export default function LandingPage() {
                 <h2 className="font-black text-xl text-gray-800">Daftar Event</h2>
                 <p className="text-gray-400 text-xs font-bold mt-0.5 uppercase tracking-widest">{registerModal.title}</p>
               </div>
-              <button onClick={handleCloseRegister} className="text-gray-300 hover:text-gray-600"><X size={20}/></button>
+              <button onClick={handleCloseRegister} className="text-gray-300 hover:text-gray-600"><X size={20} /></button>
             </div>
 
             {/* Info member GLI */}
             {user ? (
               <div className="bg-green-50 rounded-2xl p-3 mb-4 flex items-center gap-2 text-green-700 text-xs font-bold">
-                <CheckCircle size={14}/> Kamu terdaftar sebagai Member GLI — akan mendapat medali digital setelah event!
+                <CheckCircle size={14} /> Kamu terdaftar sebagai Member GLI — akan mendapat medali digital setelah event!
               </div>
             ) : (
               <div className="bg-blue-50 rounded-2xl p-3 mb-4 text-xs text-blue-600 font-bold">
@@ -340,17 +340,17 @@ export default function LandingPage() {
               <div>
                 <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Nama Lengkap *</label>
                 <div className="flex items-center gap-3 bg-gray-50 rounded-2xl px-4 py-3">
-                  <User size={16} className="text-gray-400"/>
+                  <User size={16} className="text-gray-400" />
                   <input placeholder="Nama kamu" className="bg-transparent border-none outline-none text-sm font-bold w-full"
-                    value={form.name} onChange={e => setForm({...form, name:e.target.value})} />
+                    value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
                 </div>
               </div>
               <div>
                 <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Email *</label>
                 <div className="flex items-center gap-3 bg-gray-50 rounded-2xl px-4 py-3">
-                  <Mail size={16} className="text-gray-400"/>
+                  <Mail size={16} className="text-gray-400" />
                   <input type="email" placeholder="email@gmail.com" className="bg-transparent border-none outline-none text-sm font-bold w-full"
-                    value={form.email} onChange={e => setForm({...form, email:e.target.value})}
+                    value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
                     readOnly={!!user} // ✅ Kalau sudah login, email tidak bisa diubah
                   />
                 </div>
@@ -358,9 +358,9 @@ export default function LandingPage() {
               <div>
                 <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">No. Telepon</label>
                 <div className="flex items-center gap-3 bg-gray-50 rounded-2xl px-4 py-3">
-                  <Phone size={16} className="text-gray-400"/>
+                  <Phone size={16} className="text-gray-400" />
                   <input placeholder="08xxxxxxxxxx" className="bg-transparent border-none outline-none text-sm font-bold w-full"
-                    value={form.phone} onChange={e => setForm({...form, phone:e.target.value})} />
+                    value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
                 </div>
               </div>
             </div>
@@ -403,7 +403,7 @@ export default function LandingPage() {
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-white rounded-[40px] w-full max-w-sm shadow-2xl p-10 text-center">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
-              <CheckCircle size={40} className="text-green-500"/>
+              <CheckCircle size={40} className="text-green-500" />
             </div>
             <h2 className="font-black text-2xl text-gray-800 mb-1">Berhasil Terdaftar!</h2>
             <p className="text-gray-400 text-sm mb-1 font-bold">{successData.event_title}</p>
@@ -423,7 +423,7 @@ export default function LandingPage() {
             {successData.wa_link && (
               <a href={successData.wa_link} target="_blank" rel="noreferrer"
                 className="w-full flex items-center justify-center gap-2 py-3 bg-green-500 text-white font-black text-sm rounded-2xl hover:bg-green-600 transition mb-3">
-                <ExternalLink size={16}/> Bergabung ke Grup WA
+                <ExternalLink size={16} /> Bergabung ke Grup WA
               </a>
             )}
 

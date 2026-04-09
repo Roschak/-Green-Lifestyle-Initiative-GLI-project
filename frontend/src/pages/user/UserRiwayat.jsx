@@ -9,21 +9,27 @@ const BG = 'linear-gradient(180deg, #004D40 0%, #2E7D32 100%)'
 
 const statusMap = {
   approved: { label: 'DISETUJUI', color: '#166534', bg: '#dcfce7' },
-  pending:  { label: 'TERTUNDA',  color: '#92400e', bg: '#fef3c7' },
-  rejected: { label: 'DITOLAK',   color: '#991b1b', bg: '#fee2e2' },
+  pending: { label: 'TERTUNDA', color: '#92400e', bg: '#fef3c7' },
+  rejected: { label: 'DITOLAK', color: '#991b1b', bg: '#fee2e2' },
 }
 
 const fmt = (d) => {
   if (!d) return '-'
-  const dt = new Date(d)
+  // Handle Firestore Timestamp objects
+  let dt = d
+  if (d && typeof d === 'object' && ('toDate' in d || '_seconds' in d)) {
+    dt = d.toDate ? d.toDate() : new Date(d._seconds * 1000)
+  } else {
+    dt = new Date(d)
+  }
   return isNaN(dt) ? d : dt.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
 export default function UserRiwayat() {
   const navigate = useNavigate()
-  const { user } = useAuth()
-  const [actions, setActions]       = useState([])
-  const [loading, setLoading]       = useState(true)
+  const { user, getToken } = useAuth()
+  const [actions, setActions] = useState([])
+  const [loading, setLoading] = useState(true)
   const [detailModal, setDetailModal] = useState(null)
 
   useEffect(() => {
@@ -33,10 +39,17 @@ export default function UserRiwayat() {
   const fetchActions = async () => {
     setLoading(true)
     try {
-      const token      = localStorage.getItem('token')
-      const storedUser = JSON.parse(localStorage.getItem('user'))
-      const userId     = user?.id || storedUser?.id
-      if (!token) return
+      const userId = user?.id
+      if (!userId) {
+        console.log('No user ID available')
+        return
+      }
+
+      const token = await getToken()
+      if (!token) {
+        console.log('No token available')
+        return
+      }
 
       const res = await axios.get(
         `http://localhost:5000/api/user/actions/${userId}`,
@@ -122,7 +135,7 @@ export default function UserRiwayat() {
                         onClick={() => item.img && item.img !== 'no-image.jpg' && setDetailModal(item)}
                       >
                         {item.img && item.img !== 'no-image.jpg'
-                          ? <img src={`http://localhost:5000${item.img}`} alt="" className="w-full h-full object-cover" />
+                          ? <img src={item.img.startsWith('http') ? item.img : `http://localhost:5000${item.img}`} alt="" className="w-full h-full object-cover" />
                           : <span className="text-2xl">🌿</span>
                         }
                       </div>
@@ -204,7 +217,7 @@ export default function UserRiwayat() {
             <div className="relative">
               {detailModal.img && detailModal.img !== 'no-image.jpg' ? (
                 <img
-                  src={`http://localhost:5000${detailModal.img}`}
+                  src={detailModal.img.startsWith('http') ? detailModal.img : `http://localhost:5000${detailModal.img}`}
                   alt={detailModal.action_name}
                   className="w-full h-52 object-cover"
                 />

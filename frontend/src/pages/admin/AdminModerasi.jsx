@@ -40,8 +40,8 @@ const SectionHeader = ({ title, type, color, count, searchValue, onSearchChange,
 // ✅ Komponen foto - tampilkan gambar kalau ada, icon kalau tidak ada
 const ActionPhoto = ({ img, actionName, onClick }) => {
   const [imgError, setImgError] = useState(false)
-  const imgUrl = img && img !== 'no-image.jpg' 
-    ? `http://localhost:5000${img}` 
+  const imgUrl = img && img !== 'no-image.jpg'
+    ? (img.startsWith('http') ? img : `http://localhost:5000${img}`)
     : null
 
   if (imgUrl && !imgError) {
@@ -156,13 +156,15 @@ export default function AdminModerasi() {
     setLoading(true)
     try {
       const res = await getAllActions()
-      const data = res.data || []
+      const data = Array.isArray(res.data) ? res.data : []
+      console.log('📌 getAllActions result:', data)
       setActions({
-        pending:  data.filter(a => a.status === 'pending'),
+        pending: data.filter(a => a.status === 'pending'),
         approved: data.filter(a => a.status === 'approved'),
         rejected: data.filter(a => a.status === 'rejected'),
       })
-    } catch {
+    } catch (err) {
+      console.error('❌ fetchData error:', err)
       setActions({ pending: [], approved: [], rejected: [] })
     } finally { setLoading(false) }
   }
@@ -188,7 +190,8 @@ export default function AdminModerasi() {
   }
 
   const getFilteredData = (type) => {
-    return actions[type].filter(item => {
+    const typeData = actions[type] || []
+    return typeData.filter(item => {
       const matchName = item.user_name?.toLowerCase().includes(debouncedFilters[type].toLowerCase())
       const matchDate = dates[type] ? item.created_at.includes(dates[type]) : true
       return matchName && matchDate

@@ -32,10 +32,10 @@ exports.createAction = async (req, res) => {
 
         console.log('✅ Action created:', docRef.id);
 
-        return res.status(201).json({ 
-            success: true, 
-            message: 'Aksi berhasil dilaporkan!', 
-            actionId: docRef.id 
+        return res.status(201).json({
+            success: true,
+            message: 'Aksi berhasil dilaporkan!',
+            actionId: docRef.id
         });
 
     } catch (err) {
@@ -55,14 +55,46 @@ exports.getUserActions = async (req, res) => {
 
         const actions = [];
         snapshot.forEach(doc => {
-            actions.push({ id: doc.id, ...doc.data() });
+            const data = doc.data();
+            // Convert Firestore Timestamps to ISO strings
+            if (data.created_at?.toDate) data.created_at = data.created_at.toDate().toISOString();
+            if (data.updated_at?.toDate) data.updated_at = data.updated_at.toDate().toISOString();
+            actions.push({ id: doc.id, ...data });
         });
 
+        console.log(`✅ getUserActions for ${userId}: ${actions.length} actions`);
         return res.json(actions);
 
     } catch (err) {
         console.error('❌ Get User Actions Error:', err);
-        return res.status(500).json({ success: false, message: err.message });
+        // If index error, try without orderBy as fallback
+        if (err.code === 9) {
+            try {
+                const snapshot = await db.collection('actions')
+                    .where('user_id', '==', req.params.id)
+                    .get();
+
+                const actions = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    // Convert Firestore Timestamps to ISO strings
+                    if (data.created_at?.toDate) data.created_at = data.created_at.toDate().toISOString();
+                    if (data.updated_at?.toDate) data.updated_at = data.updated_at.toDate().toISOString();
+                    actions.push({ id: doc.id, ...data });
+                });
+
+                // Sort in memory
+                actions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                console.log(`✅ getUserActions (fallback) for ${req.params.id}: ${actions.length} actions`);
+                return res.json(actions);
+            } catch (fallbackErr) {
+                console.error('❌ Fallback error:', fallbackErr);
+                // Always return array even on error
+                return res.json([]);
+            }
+        }
+        console.error('❌ Returning fallback array');
+        return res.json([]);
     }
 };
 

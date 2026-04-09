@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import UserSidebar from '../../components/UserSidebar'
 import { useAuth } from '../../context/AuthContext'
 import { BarChart, Bar, ResponsiveContainer, Cell, XAxis } from 'recharts'
-import axios from 'axios'
+import api from '../../services/api'
 
 const BG = 'linear-gradient(180deg, #004D40 0%, #2E7D32 100%)'
 
@@ -13,27 +13,18 @@ export default function UserDashboard() {
   const [userStats, setUserStats] = useState({ totalPoints: 0, totalActions: 0, approved: 0, pending: 0, rejected: 0 })
 
   useEffect(() => {
-  const fetchUserStats = async () => {
-    try {
-      const token = localStorage.getItem('token')
+    const fetchUserStats = async () => {
+      try {
+        const res = await api.get(`/user/stats/${user?.id}`)
 
-      const res = await axios.get(
-        `http://localhost:5000/api/user/stats/${user?.id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      )
-
-      setUserStats(res.data)
-    } catch (err) {
-      console.error("Gagal ambil stats user:", err)
+        setUserStats(res.data)
+      } catch (err) {
+        console.error("Gagal ambil stats user:", err)
+      }
     }
-  }
 
-  if (user?.id) fetchUserStats()
-}, [user])
+    if (user?.id) fetchUserStats()
+  }, [user])
 
   return (
     <div className="flex min-h-screen">

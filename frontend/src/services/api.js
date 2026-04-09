@@ -1,6 +1,7 @@
 // frontend/src/services/api.js
 import axios from 'axios'
 
+// Use localhost for development, Vercel URL for production
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 const api = axios.create({
@@ -8,16 +9,27 @@ const api = axios.create({
   withCredentials: true
 })
 
-// ✅ Request Interceptor
+// ✅ Request Interceptor - attach Firebase token
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-      console.log('📤 Token attached to request')
-    } else {
-      console.warn('⚠️ No token in localStorage')
+  async (config) => {
+    try {
+      // Try to get Firebase token from the auth context
+      const { getAuth } = await import('firebase/auth')
+      const auth = getAuth()
+      const user = auth.currentUser
+
+      if (user) {
+        const token = await user.getIdToken(true)
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`
+          console.log('📤 Firebase token attached to request')
+          return config
+        }
+      }
+    } catch (err) {
+      console.warn('⚠️ Could not get Firebase token:', err.message)
     }
+
     return config
   },
   (error) => {
@@ -31,13 +43,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     console.error('❌ Response error:', error.response?.status, error.response?.data)
-    
+
     if (error.response?.status === 401) {
-      console.error('❌ 401 Unauthorized - Redirecting to login')
-      localStorage.removeItem('token')
-      setTimeout(() => {
-        window.location.href = '/login'
-      }, 500)
+      console.error('❌ 401 Unauthorized - Token may be expired')
     }
     return Promise.reject(error)
   }

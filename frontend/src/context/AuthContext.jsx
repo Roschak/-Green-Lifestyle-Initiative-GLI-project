@@ -146,7 +146,7 @@ export function AuthProvider({ children }) {
   const getToken = async () => {
     const current = auth.currentUser
     if (!current) return null
-    return await current.getIdToken()
+    return await current.getIdToken(true) // Force refresh
   }
 
   const isAdmin = () => user?.role === 'admin'

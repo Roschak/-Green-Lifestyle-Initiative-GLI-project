@@ -143,11 +143,13 @@ exports.getAllActions = async (req, res) => {
             });
         }
 
+        console.log(`✅ getAllActions: ${actions.length} actions found`);
         return res.json(actions);
 
     } catch (err) {
         console.error('❌ Get All Actions Error:', err);
-        return res.status(500).json({ success: false, message: 'Error' });
+        // Always return an array, even on error
+        return res.json([]);
     }
 };
 
@@ -164,7 +166,7 @@ exports.verifyAction = async (req, res) => {
         }
 
         const actionData = actionDoc.data();
-        const updateData = { 
+        const updateData = {
             status,
             admin_note: admin_note || '',
             updated_at: admin.firestore.FieldValue.serverTimestamp()
@@ -193,9 +195,9 @@ exports.verifyAction = async (req, res) => {
 
         console.log('✅ Action verified:', id, status);
 
-        return res.json({ 
-            success: true, 
-            message: `Aksi berhasil di${status === 'approved' ? 'setujui' : 'tolak'}` 
+        return res.json({
+            success: true,
+            message: `Aksi berhasil di${status === 'approved' ? 'setujui' : 'tolak'}`
         });
 
     } catch (err) {

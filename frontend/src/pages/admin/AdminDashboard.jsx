@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import AdminSidebar from '../../components/AdminSidebar'
 import { Bell, Users, X, Clock, Calendar, Trophy, ArrowUpRight, Activity } from 'lucide-react'
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
-import axios from 'axios'
+import api from '../../services/api'
 
 const BG = 'linear-gradient(180deg, #004D40 0%, #2E7D32 100%)'
 
@@ -12,13 +12,13 @@ export default function AdminDashboard() {
   const [modal, setModal] = useState(null)
 
   const [stats, setStats] = useState({
-    totalUsers:     0,
-    pending:        0,
-    rejected:       0,
-    onlineUsers:    0,
+    totalUsers: 0,
+    pending: 0,
+    rejected: 0,
+    onlineUsers: 0,
     topLeaderboard: 'Memuat...',
-    topPoints:      0,
-    currentSeason:  ''
+    topPoints: 0,
+    currentSeason: ''
   })
 
   // ✅ chartData untuk grafik 7 hari (tidak difilter tanggal)
@@ -26,17 +26,14 @@ export default function AdminDashboard() {
 
   // ✅ allActions = semua pending dari backend
   // recentActions = yang ditampilkan (bisa difilter tanggal)
-  const [allActions, setAllActions]     = useState([])
+  const [allActions, setAllActions] = useState([])
   const [recentActions, setRecentActions] = useState([])
-  const [filterDate, setFilterDate]     = useState('')
+  const [filterDate, setFilterDate] = useState('')
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem('token')
-        const res = await axios.get('http://localhost:5000/api/admin/stats', {
-          headers: { Authorization: `Bearer ${token}` }
-        })
+        const res = await api.get('/admin/stats')
 
         setStats(res.data)
 
@@ -45,16 +42,16 @@ export default function AdminDashboard() {
 
         // ✅ FIX: recent dari backend sudah hanya pending
         const mappedActions = (res.data.recent || []).map(action => ({
-          id:      action.id,
+          id: action.id,
           initials: action.user_name
             ? action.user_name.split(' ').map(n => n[0]).join('').toUpperCase()
             : '??',
-          color:   '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'),
-          name:    action.user_name || 'Unknown User',
+          color: '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'),
+          name: action.user_name || 'Unknown User',
           rawDate: action.created_at,
-          time:    new Date(action.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          cat:     action.action_name  || 'General',
-          desc:    action.description  || 'Tidak ada deskripsi'
+          time: new Date(action.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          cat: action.action_name || 'General',
+          desc: action.description || 'Tidak ada deskripsi'
         }))
 
         setAllActions(mappedActions)
@@ -125,8 +122,8 @@ export default function AdminDashboard() {
                   <AreaChart data={chartData}>
                     <defs>
                       <linearGradient id="colorGreen" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0}   />
+                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     {/* ✅ FIX: dataKey="name" supaya sumbu X tampil label tanggal */}
@@ -196,9 +193,9 @@ export default function AdminDashboard() {
           {/* STATS COLUMN */}
           <div className="space-y-6">
             {[
-              { label: 'Total User', val: stats.totalUsers,  icon: <Users />, color: 'text-blue-400'   },
-              { label: 'Pending',    val: stats.pending,     icon: <Clock />, color: 'text-yellow-400' },
-              { label: 'Rejected',   val: stats.rejected,    icon: <X />,     color: 'text-red-400'    },
+              { label: 'Total User', val: stats.totalUsers, icon: <Users />, color: 'text-blue-400' },
+              { label: 'Pending', val: stats.pending, icon: <Clock />, color: 'text-yellow-400' },
+              { label: 'Rejected', val: stats.rejected, icon: <X />, color: 'text-red-400' },
             ].map((item, i) => (
               <div key={i} className="bg-white/5 border border-white/10 p-6 rounded-3xl backdrop-blur-md">
                 <div className="flex items-center justify-between">

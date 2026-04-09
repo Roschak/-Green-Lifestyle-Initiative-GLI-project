@@ -3,20 +3,20 @@ import { useState, useEffect, useRef } from 'react'
 import UserSidebar from '../../components/UserSidebar'
 import { Plus, X, Calendar, MapPin, Users, Upload, Eye, CheckCircle, XCircle, Camera } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import axios from 'axios'
+import api from '../../services/api'
 
 const BG = 'linear-gradient(180deg, #004D40 0%, #2E7D32 100%)'
 
 const STATUS_LABEL = {
-  roundown:     { label: 'Pendaftaran',  color: 'bg-yellow-400 text-yellow-900' },
-  dilaksanakan: { label: 'Berlangsung',  color: 'bg-green-400 text-green-900'  },
-  berakhir:     { label: 'Berakhir',     color: 'bg-gray-300 text-gray-700'    },
+  roundown: { label: 'Pendaftaran', color: 'bg-yellow-400 text-yellow-900' },
+  dilaksanakan: { label: 'Berlangsung', color: 'bg-green-400 text-green-900' },
+  berakhir: { label: 'Berakhir', color: 'bg-gray-300 text-gray-700' },
 }
 
 const PROOF_STATUS = {
-  pending:  { label: 'Menunggu Verifikasi', color: 'text-yellow-500' },
-  approved: { label: 'Disetujui ✅',        color: 'text-green-500'  },
-  rejected: { label: 'Ditolak ❌',          color: 'text-red-500'    },
+  pending: { label: 'Menunggu Verifikasi', color: 'text-yellow-500' },
+  approved: { label: 'Disetujui ✅', color: 'text-green-500' },
+  rejected: { label: 'Ditolak ❌', color: 'text-red-500' },
 }
 
 const formatDateTime = (d) => {
@@ -26,17 +26,17 @@ const formatDateTime = (d) => {
 
 export default function UserEvent() {
   const { user } = useAuth()
-  const [myEvents, setMyEvents]         = useState({ roundown: [], dilaksanakan: [], berakhir: [] })
-  const [myRegs, setMyRegs]             = useState([])
-  const [loading, setLoading]           = useState(true)
-  const [activeTab, setActiveTab]       = useState('event') // 'event' | 'ikuti'
-  const [createModal, setCreateModal]   = useState(false)
-  const [regModal, setRegModal]         = useState(null)
+  const [myEvents, setMyEvents] = useState({ roundown: [], dilaksanakan: [], berakhir: [] })
+  const [myRegs, setMyRegs] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('event') // 'event' | 'ikuti'
+  const [createModal, setCreateModal] = useState(false)
+  const [regModal, setRegModal] = useState(null)
   const [registrations, setRegistrations] = useState([])
-  const [proofModal, setProofModal]     = useState(null)
-  const [proofFile, setProofFile]       = useState(null)
+  const [proofModal, setProofModal] = useState(null)
+  const [proofFile, setProofFile] = useState(null)
   const [proofPreview, setProofPreview] = useState(null)
-  const fileInputRef  = useRef(null)
+  const fileInputRef = useRef(null)
   const proofInputRef = useRef(null)
 
   const [form, setForm] = useState({
@@ -44,29 +44,33 @@ export default function UserEvent() {
     thumbnail_type: 'image', thumbnail_text: '', thumbnail_color: '#22c55e',
     registration_start: '', registration_end: '', event_start: '', event_end: ''
   })
-  const [thumbFile, setThumbFile]     = useState(null)
+  const [thumbFile, setThumbFile] = useState(null)
   const [thumbPreview, setThumbPreview] = useState(null)
-  const [submitting, setSubmitting]   = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => { fetchAll() }, [])
 
   const fetchAll = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('token')
+      console.log('🔍 User fetchAll: user.id =', user.id)
       const [evRes, regRes] = await Promise.all([
-        axios.get(`http://localhost:5000/api/events/host/${user.id}`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`http://localhost:5000/api/events/my/${user.id}`,   { headers: { Authorization: `Bearer ${token}` } }),
+        api.get(`/events/host/${user.id}`),
+        api.get(`/events/my/${user.id}`),
       ])
-      const data = evRes.data || []
-      setMyEvents({
-        roundown:     data.filter(e => e.status === 'roundown'),
-        dilaksanakan: data.filter(e => e.status === 'dilaksanakan'),
-        berakhir:     data.filter(e => e.status === 'berakhir'),
+      console.log('📌 ✅ evRes.data (my events):', evRes.data)
+      console.log('📌 ✅ regRes.data (my registrations):', regRes.data)
+      console.log('📌 myEvents structure:', {
+        roundown: (evRes.data?.roundown || []).length,
+        dilaksanakan: (evRes.data?.dilaksanakan || []).length,
+        berakhir: (evRes.data?.berakhir || []).length,
       })
+      const data = evRes.data || {}
+      setMyEvents(data)
       setMyRegs(regRes.data || [])
     } catch (err) {
-      console.error('Gagal fetch:', err)
+      console.error('❌ Gagal fetch:', err)
+      console.error('❌ Error response:', err.response?.data)
     } finally {
       setLoading(false)
     }
@@ -74,10 +78,7 @@ export default function UserEvent() {
 
   const fetchRegistrations = async (eventId) => {
     try {
-      const token = localStorage.getItem('token')
-      const res = await axios.get(`http://localhost:5000/api/events/${eventId}/registrations`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const res = await api.get(`/events/${eventId}/registrations`)
       setRegistrations(res.data || [])
     } catch (err) { console.error(err) }
   }
@@ -87,20 +88,19 @@ export default function UserEvent() {
       return alert('Judul dan semua waktu wajib diisi!')
     setSubmitting(true)
     try {
-      const token = localStorage.getItem('token')
-      const data  = new FormData()
+      const data = new FormData()
       Object.entries(form).forEach(([k, v]) => data.append(k, v))
-      data.append('host_id',   user.id)
-      data.append('host_role', 'user')
       if (thumbFile) data.append('thumbnail', thumbFile)
 
-      await axios.post('http://localhost:5000/api/events/create', data, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
-      })
+      await api.post('/events/create', data)
       setCreateModal(false)
+      setForm({ title: '', description: '', wa_link: '', location: '', medal_name: 'Medali Sosialisasi', thumbnail_type: 'image', thumbnail_text: '', thumbnail_color: '#22c55e', registration_start: '', registration_end: '', event_start: '', event_end: '' })
+      setThumbFile(null)
+      setThumbPreview(null)
       fetchAll()
       alert('✅ Event berhasil dibuat!')
     } catch (err) {
+      console.error('Create error:', err)
       alert(err.response?.data?.message || 'Gagal membuat event')
     } finally { setSubmitting(false) }
   }
@@ -108,35 +108,30 @@ export default function UserEvent() {
   const handleUploadProof = async () => {
     if (!proofFile) return alert('Pilih foto dulu!')
     try {
-      const token = localStorage.getItem('token')
-      const data  = new FormData()
+      const data = new FormData()
       data.append('registration_id', proofModal.id)
       data.append('proof', proofFile)
-      await axios.post('http://localhost:5000/api/events/proof', data, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
-      })
+      await api.post('/events/proof', data)
       setProofModal(null); setProofFile(null); setProofPreview(null)
       fetchAll()
       alert('✅ Bukti foto berhasil diupload!')
     } catch (err) {
+      console.error('Upload proof error:', err)
       alert('Gagal upload')
     }
   }
 
   const handleVerifyProof = async (registrationId, status) => {
     try {
-      const token = localStorage.getItem('token')
-      await axios.post('http://localhost:5000/api/events/verify', { registration_id: registrationId, status }, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      await api.post('/events/verify', { registration_id: registrationId, status })
       fetchRegistrations(regModal.id)
     } catch (err) { alert('Gagal verifikasi') }
   }
 
   const sections = [
-    { key: 'roundown',     label: 'Roundown / Pendaftaran', color: 'bg-yellow-400' },
-    { key: 'dilaksanakan', label: 'Sedang Dilaksanakan',    color: 'bg-green-400'  },
-    { key: 'berakhir',     label: 'Berakhir',               color: 'bg-gray-400'   },
+    { key: 'roundown', label: 'Roundown / Pendaftaran', color: 'bg-yellow-400' },
+    { key: 'dilaksanakan', label: 'Sedang Dilaksanakan', color: 'bg-green-400' },
+    { key: 'berakhir', label: 'Berakhir', color: 'bg-gray-400' },
   ]
 
   return (
@@ -177,19 +172,19 @@ export default function UserEvent() {
                   <div className={`w-2 h-6 rounded-full ${sec.color}`} />
                   <h2 className="font-black text-xl text-gray-800 uppercase tracking-tighter">{sec.label}</h2>
                   <span className="bg-gray-100 text-gray-500 text-[10px] font-black px-2 py-1 rounded-md">
-                    {myEvents[sec.key].length} EVENT
+                    {(myEvents[sec.key] || []).length} EVENT
                   </span>
                 </div>
 
-                {myEvents[sec.key].length === 0 ? (
+                {(myEvents[sec.key] || []).length === 0 ? (
                   <div className="py-8 text-center text-gray-300 font-black uppercase text-xs tracking-widest">Tidak ada event</div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {myEvents[sec.key].map(event => (
+                    {(myEvents[sec.key] || []).map(event => (
                       <div key={event.id} className="border border-gray-100 rounded-[24px] overflow-hidden hover:shadow-md transition">
                         <div className="h-32 relative">
                           {event.thumbnail_type === 'image' && event.thumbnail ? (
-                            <img src={`http://localhost:5000${event.thumbnail}`} className="w-full h-full object-cover" />
+                            <img src={event.thumbnail.startsWith('http') ? event.thumbnail : `http://localhost:5000${event.thumbnail}`} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center" style={{ background: event.thumbnail_color }}>
                               <p className="text-white font-black text-lg text-center px-3">{event.thumbnail_text || event.title}</p>
@@ -378,7 +373,7 @@ export default function UserEvent() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                {[['registration_start','Mulai Pendaftaran *'],['registration_end','Tutup Pendaftaran *'],['event_start','Mulai Pelaksanaan *'],['event_end','Selesai Pelaksanaan *']].map(([key, label]) => (
+                {[['registration_start', 'Mulai Pendaftaran *'], ['registration_end', 'Tutup Pendaftaran *'], ['event_start', 'Mulai Pelaksanaan *'], ['event_end', 'Selesai Pelaksanaan *']].map(([key, label]) => (
                   <div key={key}>
                     <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">{label}</label>
                     <input type="datetime-local" className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 ring-green-400"
@@ -415,7 +410,7 @@ export default function UserEvent() {
               <table className="w-full">
                 <thead className="sticky top-0 bg-white">
                   <tr className="border-b border-gray-50">
-                    {['Nama','Email','Status GLI','Bukti','Aksi'].map(h => (
+                    {['Nama', 'Email', 'Status GLI', 'Bukti', 'Aksi'].map(h => (
                       <th key={h} className="text-left text-[9px] font-black text-gray-300 uppercase tracking-widest py-4 px-4">{h}</th>
                     ))}
                   </tr>
