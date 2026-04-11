@@ -7,5 +7,6 @@ const { protect } = require('../middleware/authMiddleware');
 router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/logout', protect, authController.logout);
+router.post('/google-register', authController.googleRegister);  // ✅ NEW
 
 module.exports = router;

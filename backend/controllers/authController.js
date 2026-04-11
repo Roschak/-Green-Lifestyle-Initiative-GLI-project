@@ -82,15 +82,15 @@ exports.login = async (req, res) => {
         try {
             const userRecord = await admin.auth().getUserByEmail(email.toLowerCase().trim());
             console.log('✅ Firebase Auth user found:', userRecord.uid);
-            
+
             // Get user data from Firestore using Firebase UID
             const userDoc = await db.collection('users').doc(userRecord.uid).get();
-            
+
             if (!userDoc.exists) {
                 console.log('⚠️ Firebase user exists but no Firestore record:', userRecord.uid);
                 return res.status(401).json({ success: false, message: 'Email atau password salah' });
             }
-            
+
             const user = userDoc.data();
 
             // Update user status
@@ -148,5 +148,87 @@ exports.logout = async (req, res) => {
     } catch (err) {
         console.error('❌ Logout Error:', err);
         return res.status(500).json({ success: false, message: 'Gagal logout' });
+    }
+};
+
+/**
+ * Google Register - Registrasi user melalui Google OAuth
+ * ✅ Checks email uniqueness first
+ * ✅ Prevents duplicate accounts
+ */
+exports.googleRegister = async (req, res) => {
+    const { email, name, photoURL } = req.body;
+
+    if (!email || !name) {
+        return res.status(400).json({ success: false, message: 'Email dan name wajib diisi' });
+    }
+
+    try {
+        // ✅ FIX: Check if email ALREADY EXISTS (by any provider)
+        const existing = await db.collection('users')
+            .where('email', '==', email.toLowerCase().trim())
+            .limit(1)
+            .get();
+
+        if (!existing.empty) {
+            console.log('⚠️ Email sudah terdaftar:', email);
+            return res.status(400).json({ success: false, message: 'Email sudah terdaftar. Silakan login dengan akun Anda.' });
+        }
+
+        // ✅ Create Firebase Auth user (provider: Google)
+        let firebaseUser;
+        try {
+            firebaseUser = await admin.auth().createUser({
+                email: email.toLowerCase().trim(),
+                displayName: name.trim(),
+                photoURL: photoURL || null
+            });
+            console.log('✅ Firebase Auth user created (Google):', firebaseUser.uid);
+        } catch (firebaseErr) {
+            if (firebaseErr.code === 'auth/email-already-exists') {
+                return res.status(400).json({ success: false, message: 'Email sudah terdaftar di Firebase' });
+            }
+            throw firebaseErr;
+        }
+
+        // ✅ Create Firestore user record
+        await db.collection('users').doc(firebaseUser.uid).set({
+            name: name.trim(),
+            email: email.toLowerCase().trim(),
+            photoURL: photoURL || null,
+            provider: 'google',
+            role: 'user',
+            points: 0,
+            monthly_points: 0,
+            level: 'Eco-Newbie',
+            medal: '',
+            status: 'online',
+            last_activity: admin.firestore.FieldValue.serverTimestamp(),
+            created_at: admin.firestore.FieldValue.serverTimestamp(),
+            updated_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        console.log('✅ Google user registered:', firebaseUser.uid);
+
+        // ✅ Return custom token
+        const customToken = await admin.auth().createCustomToken(firebaseUser.uid);
+
+        return res.status(201).json({
+            success: true,
+            message: 'Registrasi Google berhasil!',
+            token: customToken,
+            userId: firebaseUser.uid,
+            user: {
+                id: firebaseUser.uid,
+                email: email.toLowerCase().trim(),
+                name: name.trim(),
+                role: 'user',
+                provider: 'google'
+            }
+        });
+
+    } catch (err) {
+        console.error('❌ Google Register Error:', err.message);
+        return res.status(500).json({ success: false, message: 'Gagal registrasi Google: ' + err.message });
     }
 };

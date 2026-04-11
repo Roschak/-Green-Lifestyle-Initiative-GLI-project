@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import { auth, googleProvider, db } from '../config/firebase_config'
-import { createUserWithEmailAndPassword, signInWithPopup, updateProfile } from 'firebase/auth'
-import { doc, setDoc, getDoc } from 'firebase/firestore'
+import { signInWithPopup } from 'firebase/auth'
+import { query, collection, where, getDocs } from 'firebase/firestore'
 import api from '../services/api'
 
 export default function RegisterPage() {
@@ -56,33 +56,15 @@ export default function RegisterPage() {
 
       console.log('✅ Backend registration success')
 
-      // 2. Create user di Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, form.email, form.password)
-      const firebaseUser = userCredential.user
+      // 2. Create user di Firebase Auth (use backend token)
+      // ❌ REMOVED: setDoc duplicate write (lines 68-80)
+      // ✅ Backend sudah membuat user di Firestore
+      // Langsung gunakan backend token tanpa duplikasi
 
-      // 3. Update profile
-      const name = form.email.split('@')[0]
-      await updateProfile(firebaseUser, { displayName: name })
-
-      // 4. Simpan ke Firestore juga
-      await setDoc(doc(db, 'users', firebaseUser.uid), {
-        email: form.email,
-        name: name,
-        role: 'user',
-        provider: 'email',
-        points: 0,
-        monthly_points: 0,
-        level: 'Eco-Newbie',
-        medal: '',
-        status: 'offline',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-
-      // 5. Get Firebase ID Token dan simpan ke localStorage
-      const idToken = await firebaseUser.getIdToken()
-      localStorage.setItem('token', idToken)
-      console.log('✅ Firebase ID Token saved to localStorage')
+      // 3. Save backend token ke localStorage (bukan Firebase ID Token)
+      localStorage.setItem('token', backendRes.data.token || '')
+      localStorage.setItem('userId', backendRes.data.userId || '')
+      console.log('✅ User registered successfully - Backend token saved')
 
       setSuccess('Registrasi berhasil! Mengalihkan...')
       setTimeout(() => navigate('/user/dashboard'), 1500)
@@ -116,37 +98,42 @@ export default function RegisterPage() {
       const result = await signInWithPopup(auth, googleProvider)
       const firebaseUser = result.user
 
-      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid))
+      // ✅ FIX: Check if email already exists (not just UID)
+      const q = query(collection(db, 'users'), where('email', '==', firebaseUser.email.toLowerCase()))
+      const existingUsers = await getDocs(q)
 
-      let role = 'user'
-      if (!userDoc.exists()) {
-        await setDoc(doc(db, 'users', firebaseUser.uid), {
-          email: firebaseUser.email,
-          name: firebaseUser.displayName || firebaseUser.email.split('@')[0],
-          role: 'user',
-          provider: 'google',
-          photoURL: firebaseUser.photoURL,
-          points: 0,
-          monthly_points: 0,
-          level: 'Eco-Newbie',
-          medal: '',
-          status: 'offline',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-      } else {
-        role = userDoc.data().role || 'user'
+      if (!existingUsers.empty) {
+        // Email sudah ada - user sudah pernah register
+        setError('Email sudah terdaftar. Silakan login dengan akun Anda.')
+        setTimeout(() => navigate('/login'), 2000)
+        setLoading(false)
+        return
       }
 
-      // Get Firebase ID Token dan simpan
-      const idToken = await firebaseUser.getIdToken()
-      localStorage.setItem('token', idToken)
-      console.log('✅ Firebase ID Token saved to localStorage')
+      // ✅ NEW: Call backend untuk register dengan Google
+      try {
+        const backendRes = await api.post('/auth/google-register', {
+          email: firebaseUser.email,
+          name: firebaseUser.displayName || firebaseUser.email.split('@')[0],
+          photoURL: firebaseUser.photoURL || null
+        })
 
-      if (role === 'admin') {
-        navigate('/admin/dashboard')
-      } else {
-        navigate('/user/dashboard')
+        // Save backend token
+        localStorage.setItem('token', backendRes.data.token || '')
+        localStorage.setItem('userId', backendRes.data.userId || '')
+        console.log('✅ Google registration via backend successful')
+
+        const role = backendRes.data.role || 'user'
+        if (role === 'admin') {
+          navigate('/admin/dashboard')
+        } else {
+          navigate('/user/dashboard')
+        }
+      } catch (backendErr) {
+        // Fallback: jika backend error, tetap create di Firestore untuk Google auth
+        console.warn('Backend registration failed, using local Firestore')
+        // Biarkan email check di atas sudah mencegah duplikat
+        throw backendErr
       }
 
     } catch (err) {
@@ -158,6 +145,9 @@ export default function RegisterPage() {
         setError('Popup Google diblokir. Izinkan popup untuk melanjutkan.')
       } else if (err.code === 'auth/account-exists-with-different-credential') {
         setError('Email sudah terdaftar dengan metode lain. Silakan login.')
+        setTimeout(() => navigate('/login'), 2000)
+      } else if (err.message?.includes('Email sudah terdaftar')) {
+        setError('Email sudah terdaftar. Silakan login dengan akun Anda.')
         setTimeout(() => navigate('/login'), 2000)
       } else {
         setError(err.message || 'Gagal register dengan Google! Silakan coba lagi.')

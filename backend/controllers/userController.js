@@ -233,69 +233,59 @@ exports.getUserProfile = async (req, res) => {
 /**
  * Get Public Leaderboard - Peringkat untuk user (tidak perlu admin)
  * Top 10 users berdasarkan monthly_points
+ * ✅ HANYA tampilkan users dengan points > 0 (tidak termasuk no-action users)
  * Digunakan untuk halaman Peringkat user
  */
 exports.getPublicLeaderboard = async (req, res) => {
     try {
-        // Try dengan orderBy dulu (jika composite index sudah dibuat)
-        try {
-            const snap = await db.collection('users')
-                .where('role', '==', 'user')
-                .orderBy('monthly_points', 'desc')
-                .limit(10)
-                .get();
+        // Fallback: Get semua users, filter, sort di memory (paling reliable)
+        console.log('📌 Fetching leaderboard with points filter');
+        const snap = await db.collection('users')
+            .where('role', '==', 'user')
+            .get();
 
-            const data = [];
-            snap.forEach((doc, index) => {
-                const d = doc.data();
-                data.push({
-                    rank: index + 1,
-                    id: doc.id,
-                    name: d.name || 'User',
-                    points: d.monthly_points || 0,
-                    medal: d.medal || '',
-                    level: d.level || 'Eco-Newbie',
-                    avatar: d.avatar || null
-                });
-            });
-
-            return res.json({
-                success: true,
-                period: 'April 2026',
-                data
-            });
-        } catch (indexErr) {
-            // Fallback: Get semua users dan sort di memory (jika index belum ada)
-            console.log('📌 Fallback to memory sort for leaderboard');
-            const snap = await db.collection('users')
-                .where('role', '==', 'user')
-                .get();
-
-            const users = [];
-            snap.forEach(doc => {
+        const users = [];
+        
+        // Get all user-approved action counts for total_actions field
+        const actionsSnap = await db.collection('actions')
+            .where('status', '==', 'approved')
+            .get();
+        
+        const actionCounts = {};
+        actionsSnap.forEach(doc => {
+            const userId = doc.data().user_id;
+            actionCounts[userId] = (actionCounts[userId] || 0) + 1;
+        });
+        
+        snap.forEach(doc => {
+            const points = doc.data().monthly_points || 0;
+            const userId = doc.id;
+            // ✅ FILTER: Hanya include users dengan points > 0
+            if (points > 0) {
                 users.push({
-                    id: doc.id,
+                    id: userId,
                     name: doc.data().name || 'User',
-                    points: doc.data().monthly_points || 0,
+                    points: points,
                     medal: doc.data().medal || '',
                     level: doc.data().level || 'Eco-Newbie',
-                    avatar: doc.data().avatar || null
+                    avatar: doc.data().avatar || null,
+                    total_actions: actionCounts[userId] || 0
                 });
-            });
+            }
+        });
 
-            // Sort by points descending dan ambil top 10
-            users.sort((a, b) => b.points - a.points);
-            const data = users.slice(0, 10).map((u, i) => ({
-                rank: i + 1,
-                ...u
-            }));
+        // Sort by points descending dan ambil top 10
+        users.sort((a, b) => b.points - a.points);
+        const data = users.slice(0, 10).map((u, i) => ({
+            rank: i + 1,
+            ...u
+        }));
 
-            return res.json({
-                success: true,
-                period: 'April 2026',
-                data
-            });
-        }
+        return res.json({
+            success: true,
+            period: 'April 2026',
+            data
+        });
 
     } catch (err) {
         console.error('❌ Public Leaderboard Error:', err);
