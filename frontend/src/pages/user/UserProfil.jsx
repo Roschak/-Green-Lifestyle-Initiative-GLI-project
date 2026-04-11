@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import UserSidebar from '../../components/UserSidebar'
 import { useAuth } from '../../context/AuthContext'
-import { Lock, Bell, LogOut, ChevronRight } from 'lucide-react'
+import { Lock, LogOut, ChevronRight, Edit2, Upload } from 'lucide-react'
 import api from '../../services/api'
 
 const BG = 'linear-gradient(180deg, #004D40 0%, #2E7D32 100%)'
@@ -35,9 +35,12 @@ function MedalIcon({ medal }) {
 
 export default function UserProfil() {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user, logout, setUser } = useAuth()
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [editingName, setEditingName] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [uploading, setUploading] = useState(false)
   
   const handleLogout = () => { logout(); navigate('/login') }
   const getInit = (name) => name ? name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'BS'
@@ -50,6 +53,7 @@ export default function UserProfil() {
       try {
         const res = await api.get(`/user/profile/${user.id}`)
         setProfile(res.data)
+        setNewName(res.data.name || user.name || '')
       } catch (err) {
         console.error('❌ Error fetching profile:', err)
         setProfile({
@@ -57,6 +61,7 @@ export default function UserProfil() {
           total_actions: 0,
           medal: ''
         })
+        setNewName(user.name || '')
       } finally {
         setLoading(false)
       }
@@ -64,6 +69,52 @@ export default function UserProfil() {
     
     fetchProfile()
   }, [user?.id])
+
+  // ✅ Handle name edit
+  const handleSaveName = async () => {
+    if (!newName.trim() || newName === profile?.name) {
+      setEditingName(false)
+      return
+    }
+
+    try {
+      const res = await api.put(`/user/profile/${user.id}`, { name: newName })
+      if (res.data.success) {
+        setProfile({ ...profile, name: newName })
+        setUser({ ...user, name: newName })
+        setEditingName(false)
+      }
+    } catch (err) {
+      console.error('❌ Error saving name:', err)
+      alert('Gagal menyimpan nama')
+    }
+  }
+
+  // ✅ Handle avatar upload
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('avatar', file)
+
+      const res = await api.post(`/user/profile/${user.id}/avatar`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+
+      if (res.data.success) {
+        setProfile({ ...profile, avatar: res.data.avatar })
+        setUser({ ...user, avatar: res.data.avatar })
+      }
+    } catch (err) {
+      console.error('❌ Error uploading avatar:', err)
+      alert('Gagal upload foto profile')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -107,16 +158,45 @@ export default function UserProfil() {
 
         {/* Avatar */}
         <div className="text-center mb-7">
-          <div className="w-24 h-24 rounded-full bg-white/20 border-4 border-green-400 mx-auto mb-4 relative">
-            <div className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-green-400 flex items-center justify-center cursor-pointer border-2 border-green-800">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="white" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </div>
+          <div className="w-24 h-24 rounded-full bg-white/20 border-4 border-green-400 mx-auto mb-4 relative overflow-hidden group">
+            {profile?.avatar ? (
+              <img src={profile.avatar} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-2xl font-bold text-white">
+                {getInit(profile?.name || user?.name || 'BS')}
+              </div>
+            )}
+            <label className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-green-400 flex items-center justify-center cursor-pointer border-2 border-green-800 hover:bg-green-500 transition-colors opacity-0 group-hover:opacity-100">
+              <Upload width="12" height="12" className="text-white" />
+              <input type="file" accept="image/*" onChange={handleAvatarChange} disabled={uploading} className="hidden" />
+            </label>
           </div>
-          <h2 className="font-black text-2xl text-white mb-1">{user?.name || 'Budi Santoso'}</h2>
-          <p className="text-sm text-white/45">{user?.email || 'Budisantoso@gmail.com'}</p>
+          
+          {/* Name edit */}
+          <div className="flex items-center justify-center gap-2 mb-1">
+            {editingName ? (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="px-3 py-1 rounded text-sm font-black text-center border border-green-400"
+                  autoFocus
+                />
+                <button onClick={handleSaveName} className="px-3 py-1 bg-green-400 text-white text-xs font-bold rounded hover:bg-green-500 transition-colors">
+                  Simpan
+                </button>
+              </div>
+            ) : (
+              <>
+                <h2 className="font-black text-2xl text-white">{newName || 'User'}</h2>
+                <button onClick={() => setEditingName(true)} className="p-1 hover:bg-white/10 rounded transition-colors">
+                  <Edit2 size={16} className="text-white/60" />
+                </button>
+              </>
+            )}
+          </div>
+          <p className="text-sm text-white/45">{user?.email || 'user@email.com'}</p>
         </div>
 
         {/* Stats */}
@@ -149,19 +229,9 @@ export default function UserProfil() {
           ))}
         </div>
 
-        {/* Settings */}
+        {/* Logout Only */}
         <h3 className="font-black text-lg text-white mb-4">Pengaturan Akun</h3>
         <div className="flex flex-col gap-2.5">
-          <div className="bg-white rounded-2xl px-5 py-4 flex items-center gap-3 cursor-pointer hover:bg-gray-50 transition-colors">
-            <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center text-blue-500"><Lock size={18} /></div>
-            <span className="flex-1 text-sm font-semibold text-gray-800">Ganti Kata Sandi</span>
-            <ChevronRight size={18} className="text-gray-300" />
-          </div>
-          <div className="bg-white rounded-2xl px-5 py-4 flex items-center gap-3 cursor-pointer hover:bg-gray-50 transition-colors">
-            <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center text-orange-500"><Bell size={18} /></div>
-            <span className="flex-1 text-sm font-semibold text-gray-800">Notifikasi</span>
-            <ChevronRight size={18} className="text-gray-300" />
-          </div>
           <div onClick={handleLogout} className="rounded-2xl px-5 py-4 flex items-center gap-3 cursor-pointer border border-red-100 hover:bg-red-50 transition-colors" style={{ background: '#fff5f5' }}>
             <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center text-red-500"><LogOut size={18} /></div>
             <span className="flex-1 text-sm font-semibold text-red-500">Keluar</span>

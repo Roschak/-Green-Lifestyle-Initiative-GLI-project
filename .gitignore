@@ -53,3 +53,7 @@ yarn-error.log*
 # ========== OS SPECIFIC ==========
 .AppleDouble
 .LSOverride
+
+# ========== PROJECT SCRIPTS ==========
+REMOVE_SENSITIVE_FILES.sh
+frontend/.firebase/hosting.*.cache

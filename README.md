@@ -4,106 +4,309 @@ Project ID: CC26-PS030 | Lead: Ragah Dirotama W.
 ________________________________________
 📖 Deskripsi Proyek
 Green Lifestyle Initiative (GLI) adalah platform Full-Stack Web Application yang dirancang untuk mentransformasi kesadaran lingkungan menjadi aksi nyata. Masalah utama yang kami selesaikan adalah kurangnya validasi dan rendahnya motivasi dalam aktivitas ramah lingkungan.
-Dengan GLI, setiap aksi (seperti mengurangi plastik atau hemat energi) harus disertai bukti foto yang kemudian diverifikasi secara manual oleh Admin melalui dashboard moderasi sebelum poin diberikan ke pengguna.
+Dengan GLI, setiap aksi (seperti mengurangi plastik atau hemat energi) harus disertai bukti foto yang kemudian diverifikasi secara manual oleh Admin melalui dashboard moderasi sebelum poin diberikan ke pengguna. Platform juga menyediakan event management system, leaderboard real-time, medal gamification, dan mentoring system untuk mendorong partisipasi berkelanjutan.
 ________________________________________
 🚀 Fitur Unggulan
 👤 User Side
-•	Smart Dashboard: Visualisasi progres poin dan status aksi terbaru.
+**Dashboard & Profil**
+•	Smart Dashboard: Visualisasi progres poin, level, dan aksi terbaru.
+•	Profile Management: Edit nama, upload foto profil
+•	Medal Collection: Kumpulkan badge pencapaian dari aksi
+•	Level System: Eco-Newbie → Eco-Warrior → Eco-Champion
+
+**Action Management**
 •	Action Submission: Form pelaporan aksi dengan integrasi unggah foto bukti.
-•	Monthly Leaderboard: Peringkat kompetitif berdasarkan akumulasi poin bulanan.
+•	Riwayat Aksi: Tracking status aksi (Pending/Approved/Rejected)
 •	Real-time Notification: Mengetahui status aksi (Approved/Rejected) secara instan.
+
+**Leaderboard & Kompetisi**
+•	Monthly Leaderboard: Peringkat berdasarkan poin bulanan
+•	User Ranking: Melihat posisi di antara pengguna lain
+•	Hanya user dengan poin > 0 yang tampil di ranking
+
+**Event Management** ✨ NEW
+•	Event Discovery: Daftar event ramah lingkungan yang tersedia
+•	Event Registration: Mendaftar mengikuti event
+•	Event Attendance Tracking: Upload bukti kehadiran dengan foto
+•	Auto Medal Award: Medali otomatis saat menyelesaikan event
+•	Event Leaderboard: Ranking peserta per event
+
+**Mentoring System** ✨ NEW
+•	Online Mentors: Daftar mentor yang sedang aktif online
+•	Real-time Chat: Hubungi mentor untuk diskusi langsung
+•	Auto Offline Detection: Status mentor berubah offline jika idle >5 menit
+•	Chat History: Riwayat percakapan tersimpan
+
 🛡️ Admin Side (The Control Center)
-•	Live Traffic Monitoring: Grafik Candle Activity untuk memantau trafik platform harian.
-•	Centralized Moderation: Sistem one-click verification untuk memproses bukti aksi.
-•	User Management: Memantau status login (Online/Offline) dan total kontribusi user.
-•	Dynamic Point System: Kemampuan memberikan poin yang berbeda-beda sesuai kualitas aksi.
+**Monitoring & Analytics**
+•	Live Traffic Monitoring: Grafik aktivitas real-time per hari/minggu
+•	Top Performers: Menampilkan pengguna dengan kontribusi tertinggi
+•	User Activity Graph: Visualisasi tren aktivitas platform
+•	Period Filtering: Filter data by tanggal, bulan, tahun
+
+**User Management**
+•	User List: Monitoring semua pengguna dengan status (online/offline)
+•	User Detail: Lihat riwayat aksi, poin, medal per user
+•	Duplicate Account Detection: Identifikasi akun duplikat
+•	User Verification: Kelola status login dan aktivitas
+
+**Action Moderation**
+•	Pending Actions Queue: Daftar aksi menunggu verifikasi
+•	Photo Review: Lihat bukti foto ukuran besar
+•	One-Click Verification: Setujui atau tolak dengan catatan
+•	Dynamic Points: Tentukan poin berdasarkan kualitas aksi
+•	Medal Auto-Award: Medali otomatis diberikan saat approval
+•	Rejection Reason: Catat alasan penolakan untuk feedback
+
+**Event Management** ✨ NEW
+•	Create Event: Buat event baru dengan detail lengkap
+•	Event Dashboard: Kelola semua event yang berjalan
+•	Attendance Tracking: Monitor peserta dan bukti kehadiran
+•	Medal Configuration: Atur medali untuk event
+•	Event Leaderboard: Lihat ranking peserta per event
+•	Registration Management: Terima/tolak registrasi peserta
 ________________________________________
 🛠️ Arsitektur Teknologi (Tech Stack)
-Layer	Teknologi	Deskripsi
-Frontend	React.js (Vite)	Library UI berbasis komponen yang cepat dan reaktif.
-Styling	Tailwind CSS	Framework CSS utility-first untuk desain modern.
-Icons	Lucide React	Library icon vektor yang bersih dan konsisten.
-Backend	Node.js & Express.js	Server-side environment yang scalable.
-Database	MySQL	Sistem manajemen database relasional (RDBMS).
-Auth	JSON Web Token (JWT)	Sistem keamanan autentikasi berbasis token.
-API Client	Axios	Menangani request HTTP ke backend secara asinkron.
+| Layer | Teknologi | Deskripsi |
+|-------|-----------|-----------|
+| Frontend | React.js (Vite) | Library UI berbasis komponen yang cepat dan reaktif |
+| Frontend State | Context API | Manajemen state aplikasi global |
+| Styling | Tailwind CSS | Framework CSS utility-first untuk desain modern |
+| Icons | Lucide React | Library icon vektor yang bersih dan konsisten |
+| Backend | Node.js & Express.js | Server-side environment yang scalable |
+| Database | Firestore (Cloud) | NoSQL cloud database real-time |
+| Authentication | Firebase Auth | SSO, Email/Password, Google Sign-in |
+| Storage | Cloudinary | Cloud storage untuk foto/media |
+| API Client | Axios | Menangani request HTTP ke backend secara asinkron |
+| Deployment | Vercel (Backend) | Server-side hosting & API |
+| Deployment | Firebase Hosting | Frontend static hosting |
 ________________________________________
 📂 Struktur Folder Proyek (Full Tree)
-Plaintext
-/
+
+```
+GLI-Project-Web/
 ├── backend/
-│   ├── config/             # Konfigurasi database MySQL
-│   ├── controllers/        # Logika utama (authController.js, adminController.js)
-│   ├── middleware/         # Verifikasi Token JWT & Role Admin
-│   ├── routes/             # Endpoint API (authRoutes.js, adminRoutes.js)
-│   ├── uploads/            # Direktori penyimpanan bukti foto aksi user
-│   ├── .env                # Variabel lingkungan (DB_USER, JWT_SECRET, dll)
-│   └── index.js            # Entry point & inisialisasi Express
+│   ├── config/
+│   │   ├── db.js                 # Firestore configuration
+│   │   └── multer.js             # File upload (Cloudinary)
+│   ├── controllers/
+│   │   ├── authController.js     # Login, Register, OAuth
+│   │   ├── userController.js     # Profile, actions, leaderboard
+│   │   ├── adminController.js    # Dashboard, verification, stats
+│   │   └── eventController.js    # Event management ✨ NEW
+│   ├── middleware/
+│   │   └── authMiddleware.js     # JWT verification & role checking
+│   ├── routes/
+│   │   ├── authRoutes.js         # /api/auth/* endpoints
+│   │   ├── userRoutes.js         # /api/user/* endpoints
+│   │   ├── adminRoutes.js        # /api/admin/* endpoints
+│   │   └── eventRoutes.js        # /api/events/* endpoints ✨ NEW
+│   ├── .env                      # Environment variables
+│   ├── .env.example              # Template untuk .env
+│   ├── serviceAccountKey.json    # Firebase service account
+│   ├── server.js                 # Express entry point
+│   └── package.json
+│
 ├── frontend/
-│   ├── public/             # Asset statis
 │   ├── src/
-│   │   ├── components/     # UI Reusable (Sidebar, Modal, Table)
-│   │   ├── context/        # AuthContext untuk manajemen login session
+│   │   ├── components/           # Reusable components
+│   │   ├── context/
+│   │   │   └── AuthContext.jsx   # Global auth state
 │   │   ├── pages/
-│   │   │   ├── admin/      # AdminMonitoring, AdminModerasi
-│   │   │   └── user/       # UserDashboard, UserAksi, Leaderboard
-│   │   ├── services/       # Integrasi Axios (api.js)
-│   │   ├── App.jsx         # Pengaturan Routing (React Router)
-│   │   └── main.jsx        # Entry point React
-└── database/
-    └── gli_project_web.sql # Skema database lengkap
+│   │   │   ├── LoginPage.jsx
+│   │   │   ├── LandingPage.jsx
+│   │   │   ├── user/
+│   │   │   │   ├── UserDashboard.jsx
+│   │   │   │   ├── UserAksi.jsx
+│   │   │   │   ├── UserRiwayat.jsx
+│   │   │   │   ├── UserPeringkat.jsx
+│   │   │   │   ├── UserEvent.jsx              # ✨ NEW
+│   │   │   │   ├── UserProfil.jsx
+│   │   │   │   └── UserMentoring.jsx          # ✨ NEW
+│   │   │   └── admin/
+│   │   │       ├── AdminDashboard.jsx
+│   │   │       ├── AdminMonitoring.jsx
+│   │   │       ├── AdminModerasi.jsx
+│   │   │       ├── AdminEvent.jsx             # ✨ NEW
+│   │   │       ├── AdminAttendance.jsx        # ✨ NEW
+│   │   │       └── AdminProfil.jsx
+│   │   ├── services/
+│   │   │   ├── api.js
+│   │   │   └── firebase_config.js
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   ├── .env.local
+│   ├── vite.config.js
+│   └── package.json
+│
+├── README.md                     # Documentation
+├── USER_GUIDE.md                 # User guide ✨ NEW
+└── package.json
+```
 ________________________________________
 🗄️ Skema Database & Relasi
-1. Tabel users
-Field	Type	Deskripsi
-id	INT (PK)	Auto increment ID.
-username	VARCHAR	Nama unik pengguna.
-points	INT	Akumulasi total poin.
-monthly_points	INT	Poin untuk filter leaderboard bulan berjalan.
-is_online	BOOLEAN	Status keberadaan user di platform.
 
-2. Tabel actions
-Field	Type	Deskripsi
-id	INT (PK)	ID unik aksi.
-user_id	INT (FK)	Berelasi ke users.id.
-status	ENUM	'pending', 'approved', 'rejected'.
-image_url	TEXT	Path/lokasi file foto di server.
-points	INT	Nominal poin yang diajukan/diberikan.
+### Collection: `users`
+- id, name, email, avatar, role
+- points, monthly_points, level
+- medal (comma-separated string)
+- status (online/offline), last_activity
+- created_at, updated_at
+
+### Collection: `actions`
+- id, user_id, action_name, description
+- photo_url, created_at
+- status (pending/approved/rejected)
+- points_earned, admin_note, rejection_reason
+- updated_at
+
+### Collection: `events` ✨ NEW
+- id, title, description, location
+- medal_name, host_id, host_role
+- thumbnail, thumbnail_type, thumbnail_text, thumbnail_color
+- registration_start, registration_end
+- event_start, event_end
+- status (upcoming/ongoing/ended)
+- wa_link, created_at
+
+### Collection: `event_registrations` ✨ NEW
+- id, event_id, user_id
+- status (registered/attended/absent)
+- medal_awarded (boolean)
+- proof_url, registered_at, attended_at
+
+### Collection: `mentor_sessions` ✨ NEW
+- id, mentor_id, user_id
+- status (active/ended)
+- created_at, ended_at
 ________________________________________
-🛰️ API Endpoints (Dokumentasi Singkat)
-Authentication
-•	POST /api/auth/register - Mendaftarkan user baru.
-•	POST /api/auth/login - Mendapatkan token akses.
-Admin Actions
-•	GET /api/admin/actions - Mengambil semua data aksi (filter status).
-•	PUT /api/admin/verify/:id - Menyetujui aksi & menambah poin ke user secara otomatis.
-•	GET /api/admin/stats - Mengambil data statistik untuk grafik dashboard.
+🛰️ API Endpoints (Dokumentasi)
+
+### Authentication (`/api/auth/*`)
+- POST /auth/register
+- POST /auth/login
+- POST /auth/google-login
+- POST /auth/logout
+
+### User (`/api/user/*`)
+- GET /user/profile/:id
+- PUT /user/profile/:id
+- POST /user/profile/:id/avatar
+- GET /user/stats/:id
+- POST /user/actions
+- GET /user/actions/:id
+- GET /user/leaderboard
+- POST /user/heartbeat (auto-offline detection)
+
+### Admin (`/api/admin/*`)
+- GET /admin/stats
+- GET /admin/users
+- GET /admin/users/:id
+- GET /admin/actions
+- PUT /admin/actions/:id (auto-medal award)
+- GET /admin/leaderboard
+- DELETE /admin/users/:id
+
+### Events ✨ NEW (`/api/events/*`)
+- GET /events
+- GET /events/:id
+- POST /events (admin only)
+- PUT /events/:id (admin only)
+- DELETE /events/:id (admin only)
+- POST /events/:id/register
+- GET /events/:id/registrations
+- POST /events/:id/proof
+- GET /events/:id/leaderboard
 ________________________________________
-⚙️ Panduan Instalasi (Replikasi)
-1.	Clone Repository:
-Bash
-git clone https://github.com/ragah-dirotama/gli-project.git
+⚙️ Panduan Instalasi
 
-2.	Setup Database:
-Impor gli_project_web.sql ke MySQL Anda (Laragon/XAMPP).
+### Prerequisite
+- Node.js v16+
+- Firebase account
+- Cloudinary account
+- Git
 
-3.	Backend Setup:
-Bash
+### Backend Setup
+```bash
 cd backend
+cp .env.example .env
+# Edit .env dengan Firebase & Cloudinary credentials
 npm install
 npm start
+# Berjalan di http://localhost:5000
+```
 
-4.	Frontend Setup:
-Bash
+### Frontend Setup
+```bash
 cd frontend
+cp .env.example .env.local
+# Edit .env.local dengan API URL
 npm install
 npm run dev
+# Berjalan di http://localhost:5173
+```
+
+---
+
+## 📊 Dashboard Features
+
+### User Dashboard
+- 📈 Poin progression
+- 🏆 Current level & medals
+- ⏳ Pending actions status
+- 🎖️ Medal collection
+
+### Admin Dashboard
+- 📊 Real-time traffic (7-day graph)
+- 👥 Top 5 performers
+- ⏳ Recent pending actions
+- 📈 Action approval rate
+- 🎪 Event management
+
+---
+
+## 🔐 Keamanan
+
+- ✅ Semua API key di .env (tidak di code)
+- ✅ Firestore rules restrict unauthorized access
+- ✅ Users hanya bisa modify profil sendiri
+- ✅ Admin role verified server-side
+- ✅ Photo URLs signed untuk security
+
+---
+
+## 🚀 Deployment
+
+### Backend (Vercel)
+```bash
+cd backend && vercel deploy --prod
+```
+
+### Frontend (Firebase Hosting)
+```bash
+cd frontend && npm run build && firebase deploy
+```
 ________________________________________
 👥 Tim Pengembang (CC26-PS030)
-•	Ragah Dirotama W. - Project Manager 
-•	Nabila - Frontend 
-•	Hayfa - Backend 
-•	Talita - UI/UX Designer 
-•	Tiwi - Data Analyst 
 
-README.md ini ditulis oleh tim CC26-PS030 UNTUK MEMPRJELAS repo yang kita buat 
+| Role | Name |
+|------|------|
+| 🎯 Project Manager | Ragah Dirotama W. |
+| 🎨 Frontend Developer | Nabila |
+| 💻 Backend Developer | Hayfa |
+| 🖌️ UI/UX Designer | Talita |
+| 📊 Data Analyst | Tiwi |
+
+---
+
+## 📞 Support
+
+- **Documentation:** Lihat USER_GUIDE.md
+- **Issues:** GitHub Issues
+- **Email:** support@gli-project.com
+
+---
+
+**Mari bersama ciptakan gaya hidup hijau yang berkelanjutan! 🌱**
+
+*Last Updated: April 2026 | v1.0.0*

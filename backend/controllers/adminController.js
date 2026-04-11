@@ -300,6 +300,35 @@ exports.getUserDetail = async (req, res) => {
                     });
 
                     console.log(`✅ Points added: +${pointsToAdd} → Total: ${newTotal}`);
+
+                    // ✅ NEW: Award medal based on action name
+                    const actionName = actionData.action_name || '';
+                    const medalMap = {
+                        'Hemat Energi': 'PAHLAWAN ENERGI',
+                        'Energi': 'PAHLAWAN ENERGI',
+                        'Hemat Air': 'HEMAT AIR',
+                        'Air': 'HEMAT AIR',
+                        'Daur Ulang': 'DAUR ULANG',
+                        'Ulang': 'DAUR ULANG',
+                        'Tanam Pohon': 'PENANAM POHON',
+                        'Pohon': 'PENANAM POHON'
+                    };
+
+                    let medalToAward = null;
+                    for (const [key, medal] of Object.entries(medalMap)) {
+                        if (actionName.includes(key) || key.includes(actionName)) {
+                            medalToAward = medal;
+                            break;
+                        }
+                    }
+
+                    if (medalToAward) {
+                        const { awardMedalToUser } = require('./userController');
+                        const medalAwarded = await awardMedalToUser(actionData.user_id, medalToAward);
+                        if (medalAwarded) {
+                            console.log(`🎖️ Medal awarded: ${medalToAward}`);
+                        }
+                    }
                 }
             }
 

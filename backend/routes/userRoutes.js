@@ -9,6 +9,8 @@ router.post('/actions', protect, upload.single('image'), userController.createAc
 router.get('/stats/:id', protect, userController.getUserStats);
 router.get('/actions/:id', protect, userController.getUserActions);
 router.get('/profile/:id', protect, userController.getUserProfile);
+router.put('/profile/:id', protect, userController.updateUserProfile);  // ✅ NEW: Update profile
+router.post('/profile/:id/avatar', protect, upload.single('avatar'), userController.uploadAvatar);  // ✅ NEW: Upload avatar
 // ✅ Public leaderboard - users can view rankings without admin role
 router.get('/leaderboard', userController.getPublicLeaderboard);
 // ✅ NEW: Heartbeat - Update last_activity untuk auto-offline

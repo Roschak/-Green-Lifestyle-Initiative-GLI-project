@@ -325,3 +325,147 @@ exports.heartbeat = async (req, res) => {
         return res.status(500).json({ success: false, message: 'Error' });
     }
 };
+
+/**
+ * Award Medal to User - Helper function untuk menambah medali ke user
+ * ✅ Prevents duplicate medals
+ * ✅ Records medal in user.medal field (comma-separated)
+ * Used by: action approval, event completion
+ */
+const awardMedalToUser = async (userId, medalName) => {
+    if (!userId || !medalName) {
+        console.warn('⚠️ awardMedalToUser: Missing userId or medalName');
+        return false;
+    }
+
+    try {
+        const userDoc = await db.collection('users').doc(userId).get();
+        
+        if (!userDoc.exists()) {
+            console.error('❌ User not found:', userId);
+            return false;
+        }
+
+        const currentMedals = userDoc.data().medal || '';
+        const medalList = currentMedals
+            .split(', ')
+            .filter(m => m.trim());
+
+        // ✅ Check: medal sudah ada?
+        if (medalList.includes(medalName)) {
+            console.log(`⚠️ User ${userId} sudah punya medal: ${medalName}`);
+            return false;
+        }
+
+        // ✅ Add medal to list
+        medalList.push(medalName);
+        const updatedMedals = medalList.join(', ');
+
+        // Update Firestore
+        await db.collection('users').doc(userId).update({
+            medal: updatedMedals,
+            updated_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        console.log(`✅ Medal awarded to user ${userId}: ${medalName}`);
+        return true;
+
+    } catch (err) {
+        console.error('❌ awardMedalToUser error:', err);
+        return false;
+    }
+};
+
+/**
+ * Update User Profile - Endpoint untuk edit nama, avatar
+ * PUT /user/profile/{id}
+ */
+exports.updateUserProfile = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, avatar } = req.body;
+
+        if (!id) {
+            return res.status(400).json({ success: false, message: 'User ID diperlukan' });
+        }
+
+        const updateData = {};
+
+        // Validate & update name
+        if (name) {
+            if (name.trim().length < 3) {
+                return res.status(400).json({ success: false, message: 'Nama minimal 3 karakter' });
+            }
+            updateData.name = name.trim();
+        }
+
+        // Validate & update avatar
+        if (avatar) {
+            updateData.avatar = avatar; // Should be Cloudinary URL
+        }
+
+        if (Object.keys(updateData).length === 0) {
+            return res.status(400).json({ success: false, message: 'Tidak ada field untuk diupdate' });
+        }
+
+        updateData.updated_at = admin.firestore.FieldValue.serverTimestamp();
+
+        // Update Firestore
+        await db.collection('users').doc(id).update(updateData);
+
+        console.log(`✅ Profile updated for user ${id}:`, Object.keys(updateData));
+
+        return res.json({
+            success: true,
+            message: 'Profil berhasil diupdate',
+            data: updateData
+        });
+
+    } catch (err) {
+        console.error('❌ Update Profile Error:', err);
+        return res.status(500).json({ success: false, message: 'Gagal update profil: ' + err.message });
+    }
+};
+
+/**
+ * Export awardMedalToUser untuk digunakan di controller lain
+ */
+exports.awardMedalToUser = awardMedalToUser;
+
+/**
+ * Upload Avatar - Handle profile photo upload ke Cloudinary
+ * POST /user/profile/{id}/avatar
+ */
+exports.uploadAvatar = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!id) {
+            return res.status(400).json({ success: false, message: 'User ID diperlukan' });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'Foto profile diperlukan' });
+        }
+
+        const avatarUrl = req.file.path; // Cloudinary URL from multer
+
+        // Update user avatar in Firestore
+        await db.collection('users').doc(id).update({
+            avatar: avatarUrl,
+            updated_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        console.log(`✅ Avatar uploaded for user ${id}: ${avatarUrl}`);
+
+        return res.json({
+            success: true,
+            message: 'Foto profile berhasil diupload',
+            avatar: avatarUrl
+        });
+
+    } catch (err) {
+        console.error('❌ Upload Avatar Error:', err);
+        return res.status(500).json({ success: false, message: 'Gagal upload foto: ' + err.message });
+    }
+};
