@@ -1,7 +1,15 @@
 // backend/config/firebaseStorage.js
 // Firebase Storage uploader untuk menyimpan gambar ke Firebase Storage
 const admin = require('firebase-admin');
-const bucket = admin.storage().bucket();
+
+// Lazy-load bucket to avoid errors during module initialization
+let bucket = null;
+const getBucket = () => {
+    if (!bucket) {
+        bucket = admin.storage().bucket();
+    }
+    return bucket;
+};
 
 /**
  * Upload file ke Firebase Storage
@@ -14,6 +22,7 @@ async function uploadToFirebaseStorage(fileBuffer, fileName, folder = 'uploads')
     try {
         console.log(`📤 Uploading ${fileName} to Firebase Storage/${folder}...`);
 
+        const bucket = getBucket();
         const timestamp = Date.now();
         const safeName = `${timestamp}-${fileName.replace(/\s+/g, '-')}`;
         const filePath = `${folder}/${safeName}`;
