@@ -54,7 +54,7 @@ const getTimeRemaining = (deadline) => {
 
 export default function UserEvent() {
   const { user } = useAuth()
-  const [myEvents, setMyEvents] = useState({ board: [] })
+  const [myEvents, setMyEvents] = useState({ roundown: [], dilaksanakan: [], berakhir: [] })
   const [myRegs, setMyRegs] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('board') // 'board' | 'ikuti'
@@ -97,9 +97,9 @@ export default function UserEvent() {
   }, [myEvents])
 
   const fetchAll = async () => {
+    console.log('🚀 fetchAll() START - user.id =', user?.id)
     setLoading(true)
     try {
-      console.log('🔍 User fetchAll: user.id =', user.id)
       const [allRes, regRes] = await Promise.all([
         api.get(`/events`),  // Get ALL events available
         api.get(`/events/my/${user.id}`),  // Get events user joined
@@ -107,8 +107,16 @@ export default function UserEvent() {
       console.log('📌 ✅ allRes.data (all events):', allRes.data)
       console.log('📌 ✅ regRes.data (my registrations):', regRes.data)
 
-      // For tab display - show all events as "board"
-      setMyEvents({ board: (allRes.data || []) })
+      // Group events by status for tab display
+      const grouped = { roundown: [], dilaksanakan: [], berakhir: [] }
+      const allEvents = Array.isArray(allRes.data) ? allRes.data : (allRes.data?.data || [])
+      console.log('📌 DEBUG allEvents:', allEvents)
+      allEvents.forEach(event => {
+        const status = event.status || 'roundown'
+        if (grouped[status]) grouped[status].push(event)
+      })
+
+      setMyEvents(grouped)
       setMyRegs(regRes.data || [])
     } catch (err) {
       console.error('❌ Gagal fetch:', err)
@@ -247,8 +255,8 @@ export default function UserEvent() {
                           {/* ✅ Countdown Timer */}
                           {event.status === 'roundown' && countdown[event.id] && (
                             <div className={`text-[10px] font-black mb-3 px-2 py-1 rounded-lg text-center ${countdown[event.id].expired
-                                ? 'bg-red-100 text-red-700'
-                                : 'bg-yellow-100 text-yellow-700'
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-yellow-100 text-yellow-700'
                               }`}>
                               {countdown[event.id].expired ? '⏱️ Pendaftaran Ditutup' : `⏱️ ${countdown[event.id].text}`}
                             </div>
@@ -270,76 +278,25 @@ export default function UserEvent() {
           ) : (
             // ===== TAB EVENT DIIKUTI =====
             <div className="space-y-4">
-              {myRegs.length === 0 ? (
+              {!myRegs || myRegs.length === 0 ? (
                 <div className="py-20 text-center bg-white/5 rounded-[32px] border border-dashed border-white/20">
                   <p className="text-white/30 font-black uppercase tracking-widest text-xs">Belum mengikuti event</p>
                 </div>
-              ) : myRegs.map(reg => {
-                const st = STATUS_LABEL[reg.event_status] || STATUS_LABEL.roundown
-                const ps = PROOF_STATUS[reg.proof_status] || PROOF_STATUS.pending
-                return (
-                  <div key={reg.id} className="bg-white rounded-[28px] p-5 shadow-sm border border-gray-100 flex gap-5 items-start">
-                    {/* Thumbnail */}
-                    <div className="w-20 h-20 rounded-2xl flex-shrink-0 overflow-hidden">
-                      {reg.thumbnail_type === 'image' && reg.thumbnail ? (
-                        <img src={`http://localhost:5000${reg.thumbnail}`} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center" style={{ background: reg.thumbnail_color }}>
-                          <p className="text-white font-black text-xs text-center px-1">{reg.thumbnail_text || reg.title}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <h3 className="font-black text-gray-800 text-sm truncate">{reg.title}</h3>
-                        <span className={`text-[9px] font-black px-2 py-1 rounded-full uppercase flex-shrink-0 ${st.color}`}>
-                          {st.label}
+              ) : (
+                <div className="space-y-3">
+                  {myRegs.map((reg, idx) => (
+                    <div key={reg.id || idx} className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
+                      <div className="flex justify-between items-start gap-4 mb-3">
+                        <h3 className="font-black text-gray-800 text-sm flex-1">{reg.title || 'Event'}</h3>
+                        <span className="bg-yellow-400 text-yellow-900 text-[9px] font-black px-2 py-1 rounded-full uppercase">
+                          {reg.event_status || 'Pendaftaran'}
                         </span>
                       </div>
-
-                      <div className="space-y-1 mb-3">
-                        <div className="flex items-center gap-2 text-gray-400 text-[10px]">
-                          <Calendar size={10} /> {formatDateTime(reg.event_start)}
-                        </div>
-                        <div className="flex items-center gap-2 text-gray-400 text-[10px]">
-                          <MapPin size={10} /> {reg.location || 'Online'}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3 flex-wrap">
-                        {/* Link WA saat dilaksanakan */}
-                        {reg.event_status === 'dilaksanakan' && reg.wa_link && (
-                          <a href={reg.wa_link} target="_blank" rel="noreferrer"
-                            className="px-3 py-1.5 bg-green-500 text-white text-[10px] font-black rounded-xl hover:bg-green-600 transition">
-                            🟢 Grup WA
-                          </a>
-                        )}
-
-                        {/* Upload bukti saat dilaksanakan */}
-                        {reg.event_status === 'dilaksanakan' && !reg.proof_img && (
-                          <button onClick={() => setProofModal(reg)}
-                            className="px-3 py-1.5 bg-yellow-400 text-yellow-900 text-[10px] font-black rounded-xl hover:bg-yellow-300 transition flex items-center gap-1">
-                            <Camera size={11} /> Upload Bukti
-                          </button>
-                        )}
-
-                        {/* Status bukti */}
-                        {reg.proof_img && (
-                          <span className={`text-[10px] font-black ${ps.color}`}>{ps.label}</span>
-                        )}
-
-                        {/* Medali kalau sudah dapat */}
-                        {reg.medal_awarded === 1 && (
-                          <span className="px-3 py-1.5 bg-yellow-100 text-yellow-700 text-[10px] font-black rounded-xl">
-                            🏅 {reg.medal_name}
-                          </span>
-                        )}
-                      </div>
+                      <p className="text-[10px] text-gray-500">{reg.location || 'Online'}</p>
                     </div>
-                  </div>
-                )
-              })}
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

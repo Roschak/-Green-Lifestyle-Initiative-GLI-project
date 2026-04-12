@@ -38,6 +38,7 @@ export default function LandingPage() {
   const { user } = useAuth()  // ✅ Ambil user yang sedang login
   const [show, setShow] = useState([false, false, false])
   const [events, setEvents] = useState([])
+  const [articles, setArticles] = useState([])
   const [registerModal, setRegisterModal] = useState(null)
   const [detailModal, setDetailModal] = useState(null)
   // ✅ successData menyimpan data lengkap setelah berhasil daftar
@@ -52,6 +53,7 @@ export default function LandingPage() {
     setTimeout(() => setShow([true, true, false]), 1200)
     setTimeout(() => setShow([true, true, true]), 1900)
     fetchEvents()
+    fetchArticles()
     // ✅ Jika user sudah login, isi form otomatis
     if (user) {
       setForm(f => ({ ...f, name: user.name || '', email: user.email || '' }))
@@ -67,6 +69,13 @@ export default function LandingPage() {
       const res = await api.get('/events')
       setEvents(res.data || [])
     } catch (err) { console.error('Gagal ambil events:', err) }
+  }
+
+  const fetchArticles = async () => {
+    try {
+      const res = await api.get('/articles')
+      setArticles(res.data.articles || [])
+    } catch (err) { console.error('Gagal ambil articles:', err) }
   }
 
   const handleOpenRegister = (event) => {
@@ -110,13 +119,6 @@ export default function LandingPage() {
       setRegisterModal(null)
     }
   }
-
-  const articles = [
-    { img: '/images/menanam.png', title: 'Cara Menanam Pohon di Lingkungan Rumah', desc: 'Menanam pohon membantu menjaga kualitas udara dan membuat lingkungan lebih hijau.' },
-    { img: '/images/bersih-lingkungan.png', title: 'Aksi Bersih Lingkungan Bersama', desc: 'Kegiatan bersama meningkatkan kesadaran menjaga kebersihan lingkungan.' },
-    { img: '/images/botol-plastik.png', title: 'Manfaat Daur Ulang Sampah Plastik', desc: 'Mengurangi limbah dan membantu menghemat sumber daya.' },
-    { img: '/images/recycle.png', title: 'Tips Mengurangi Sampah Plastik', desc: 'Gunakan barang reusable untuk menjaga kelestarian lingkungan.' },
-  ]
 
   return (
     <div className="min-h-screen font-poppins relative"
@@ -257,11 +259,19 @@ export default function LandingPage() {
         <section id="artikel" className="px-16 py-20">
           <h2 className="text-4xl font-black text-white mb-10 drop-shadow-lg">Artikel Terbaru</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {articles.map((a, i) => (
-              <div key={i} className="backdrop-blur-2xl bg-white/10 border border-white/20 rounded-[32px] p-6 shadow-xl hover:scale-105 transition">
-                <img src={a.img} className="w-full h-40 object-cover rounded-2xl mb-4" />
+            {articles.length === 0 ? (
+              <div className="col-span-full text-center py-8 text-white/40">Belum ada artikel</div>
+            ) : articles.map((a, i) => (
+              <div key={a.id || i} className="backdrop-blur-2xl bg-white/10 border border-white/20 rounded-[32px] p-6 shadow-xl hover:scale-105 transition">
+                {getImageUrl(a.img) ? (
+                  <img src={getImageUrl(a.img)} className="w-full h-40 object-cover rounded-2xl mb-4" alt={a.title} />
+                ) : (
+                  <div className="w-full h-40 bg-white/10 rounded-2xl mb-4 flex items-center justify-center">
+                    <span className="text-2xl">📰</span>
+                  </div>
+                )}
                 <h3 className="text-lg font-bold text-white mb-2">{a.title}</h3>
-                <p className="text-white/70 text-sm">{a.desc}</p>
+                <p className="text-white/70 text-sm line-clamp-3">{a.description || a.desc || ''}</p>
               </div>
             ))}
           </div>

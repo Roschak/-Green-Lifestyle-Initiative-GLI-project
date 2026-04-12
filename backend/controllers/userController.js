@@ -13,7 +13,7 @@ const admin = require('firebase-admin');
 exports.createAction = async (req, res) => {
     try {
         console.log('🎬 [createAction] START');
-        
+
         const { user_id, action_name, description, location } = req.body;
         let imageUrl = null;
 
@@ -23,9 +23,13 @@ exports.createAction = async (req, res) => {
             return res.status(400).json({ success: false, message: 'User ID dan nama aksi wajib' });
         }
 
-        // TODO: Upload ke Firebase Storage di masa depan
-        // For now, skip image upload to avoid errors
-        console.log('ℹ️ Image upload disabled for stability');
+        // Get image from multer upload (Cloudinary)
+        if (req.file && req.file.path) {
+            imageUrl = req.file.path;
+            console.log('✅ Image uploaded to Cloudinary:', imageUrl);
+        } else {
+            console.warn('⚠️ No image file uploaded');
+        }
 
         // Build data object - only include defined values
         const actionData = {
@@ -41,7 +45,7 @@ exports.createAction = async (req, res) => {
             updated_at: admin.firestore.FieldValue.serverTimestamp()
         };
 
-        // Only add image if uploaded
+        // Add image URL if uploaded
         if (imageUrl) {
             actionData.img = imageUrl;
         }
@@ -49,22 +53,23 @@ exports.createAction = async (req, res) => {
         // Simpan action dengan status pending untuk admin review
         const docRef = await db.collection('actions').add(actionData);
 
-        console.log('✅ [createAction] SUCCESS - Action created:', docRef.id);
+        console.log('✅ [createAction] SUCCESS - Action created:', docRef.id, { img: imageUrl ? 'YES' : 'NO' });
 
         return res.status(201).json({
             success: true,
             message: 'Aksi berhasil dilaporkan!',
-            actionId: docRef.id
+            actionId: docRef.id,
+            imageUrl: imageUrl || null
         });
 
     } catch (err) {
         console.error('❌ [createAction] FAILED - Error:', err.message);
         console.error('❌ [createAction] Error stack:', err.stack);
         console.error('❌ [createAction] Full error:', err);
-        return res.status(500).json({ 
-            success: false, 
+        return res.status(500).json({
+            success: false,
             message: 'Gagal membuat aksi',
-            error: err.message 
+            error: err.message
         });
     }
 };

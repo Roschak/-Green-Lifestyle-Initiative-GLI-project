@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import AdminSidebar from '../../components/AdminSidebar'
-import { Plus, X, Calendar, Users, CheckCircle, XCircle, Upload, Eye, Bell, ExternalLink, Camera } from 'lucide-react'
+import { Plus, X, Calendar, Users, CheckCircle, XCircle, Upload, Eye, Bell, ExternalLink, Camera, MapPin } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../services/api'
 
@@ -476,8 +476,8 @@ export default function AdminEvent() {
               <div>
                 <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Lokasi Event</label>
                 <input className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 ring-green-400"
-                  placeholder="Contoh: Jakarta, Bandung, dll" 
-                  value={form.location} 
+                  placeholder="Contoh: Jakarta, Bandung, dll"
+                  value={form.location}
                   onChange={e => setForm({ ...form, location: e.target.value })} />
               </div>
               {/* Link WA */}

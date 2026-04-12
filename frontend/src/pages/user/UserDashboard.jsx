@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import UserSidebar from '../../components/UserSidebar'
 import { useAuth } from '../../context/AuthContext'
-import { BarChart, Bar, ResponsiveContainer, Cell, XAxis, Clock } from 'recharts'
+import { BarChart, Bar, ResponsiveContainer, Cell, XAxis } from 'recharts'
 import { Clock as ClockIcon } from 'lucide-react'
 import api from '../../services/api'
 

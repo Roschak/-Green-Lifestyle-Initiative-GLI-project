@@ -63,27 +63,32 @@ exports.getAllArticles = async (req, res) => {
       query = query.where('category', '==', category);
     }
 
-    // Get total count
-    const countSnapshot = await query.get();
-    const total = countSnapshot.size;
-
-    // Paginate
-    const startIndex = (page - 1) * limit;
-    query = query.orderBy('created_at', 'desc').limit(parseInt(limit)).offset(startIndex);
-
+    // Get all matching documents (without orderBy to avoid index requirement)
     const snapshot = await query.get();
-    const articles = [];
+    const allArticles = [];
 
     snapshot.forEach(doc => {
-      articles.push({
+      allArticles.push({
         id: doc.id,
         ...doc.data()
       });
     });
 
+    // Sort in memory
+    allArticles.sort((a, b) => {
+      const dateA = a.created_at instanceof Date ? a.created_at : new Date(a.created_at);
+      const dateB = b.created_at instanceof Date ? b.created_at : new Date(b.created_at);
+      return dateB - dateA;
+    });
+
+    // Paginate
+    const total = allArticles.length;
+    const startIndex = (page - 1) * limit;
+    const paginatedArticles = allArticles.slice(startIndex, startIndex + parseInt(limit));
+
     res.json({
       success: true,
-      articles,
+      articles: paginatedArticles,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),

@@ -12,7 +12,7 @@ router.get('/host/:user_id', protect, eventController.getHostEvents);
 router.get('/my/:user_id', protect, eventController.getUserRegistrations);
 router.post('/register', eventController.registerToEvent); // ✅ Public - allow guest registration
 router.post('/proof', protect, upload.single('proof'), eventController.uploadProof);
-router.get('/:event_id/registrations', protect, adminOnly, eventController.getEventRegistrations);
+router.get('/:event_id/registrations', protect, eventController.getEventRegistrations);
 
 // NEW: Attendance proof system
 router.post('/:event_id/proof/upload', protect, upload.single('proof'), eventController.uploadAttendanceProof);

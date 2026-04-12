@@ -400,12 +400,38 @@ exports.getUserRegistrations = async (req, res) => {
             .get();
 
         const registrations = [];
-        snap.forEach(doc => {
-            const data = doc.data();
-            // Convert timestamps
-            if (data.registered_at?.toDate) data.registered_at = data.registered_at.toDate().toISOString();
-            registrations.push({ id: doc.id, ...data });
-        });
+        for (const doc of snap.docs) {
+            const regData = doc.data();
+            
+            // Fetch event details for this registration
+            const eventDoc = await db.collection('events').doc(regData.event_id).get();
+            const eventData = eventDoc.data();
+            
+            if (eventData) {
+                // Merge event details with registration
+                const merged = {
+                    id: doc.id,
+                    ...regData,
+                    // Event details
+                    title: eventData.title || '',
+                    location: eventData.location || 'Online',
+                    event_status: calculateEventStatus(eventData),
+                    event_start: eventData.event_start?.toDate?.() || eventData.event_start || '',
+                    event_end: eventData.event_end?.toDate?.() || eventData.event_end || '',
+                    wa_link: eventData.wa_link || null,
+                    thumbnail_type: eventData.thumbnail_type || 'color',
+                    thumbnail_text: eventData.thumbnail_text || '',
+                    thumbnail_color: eventData.thumbnail_color || '#6366F1'
+                };
+                
+                // Convert registration timestamps
+                if (merged.registered_at?.toDate) merged.registered_at = merged.registered_at.toDate().toISOString();
+                if (merged.event_start?.toDate) merged.event_start = merged.event_start.toDate().toISOString();
+                if (merged.event_end?.toDate) merged.event_end = merged.event_end.toDate().toISOString();
+                
+                registrations.push(merged);
+            }
+        }
 
         return res.json(registrations);
     } catch (err) {
