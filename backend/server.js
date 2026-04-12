@@ -75,6 +75,12 @@ app.use((req, res) => {
 app.use((err, req, res, next) => {
   console.error('❌ Server Error:', err.message);
   console.error('❌ Error stack:', err.stack);
+  
+  // Ensure CORS headers are included even in error responses
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  
   res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Internal Server Error',
